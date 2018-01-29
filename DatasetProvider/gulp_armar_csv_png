@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+
+"""gulp_armar_csv_png
+Gulp a 20bn dataset that is specified using a CSV format and where the input
+data are video files.
+Usage:
+    gulp_armar_csv_png [--videos_per_chunk <videos_per_chunk>]
+                       [--num_workers <num_workers>]
+                       [--image_size <image_size>]
+                       [--shuffle]
+                       [--shm_dir <shm_dir>]
+                       <input_csv> <png_directory> <output_directory>
+    gulp_armar_csv_png (-h | --help)
+    gulp_armar_csv_png --version
+Arguments:
+    input_csv:                              Input CSV file
+    png_directory:                          Base directory for png files
+    output_directory:                       Output directory for GulpIO files
+Options:
+    -h --help                               Show this screen.
+    --version                               Show version.
+    --videos_per_chunk=<videos_per_chunk>   Number of videos in one chunk [default: 100]
+    --num_workers=<num_workers>             Number of parallel processes [default: 4]
+    --image_size=<image_size>               Size of smaller edge of resized frames [default: -1]
+    --shuffle                               Shuffle the dataset before ingestion
+    --shm_dir=<shm_dir>                     Temporary directory for bursting frames [default: /dev/shm]
+"""
+from docopt import docopt
+from ArmarDatasetProvider import CustomArmarExperiencesCsvPngAdapter
+from gulpio.fileio import GulpIngestor
+
+if __name__ == '__main__':
+    arguments = docopt(__doc__)
+    print(arguments)
+
+    input_csv = arguments['<input_csv>']
+    png_path = arguments['<png_directory>']
+    output_folder = arguments['<output_directory>']
+    videos_per_chunk = int(arguments['--videos_per_chunk'])
+    num_workers = int(arguments['--num_workers'])
+    img_size = int(arguments['--image_size'])
+    shuffle = arguments['--shuffle']
+    shm_dir = arguments['--shm_dir']
+
+    adapter = CustomArmarExperiencesCsvPngAdapter(input_csv, png_path, output_folder,
+                                                  shuffle=shuffle,
+                                                  frame_size=img_size,
+                                                  shm_dir_path=shm_dir
+                                                  )
+    ingestor = GulpIngestor(adapter, output_folder, videos_per_chunk,
+                            num_workers=num_workers)
+    ingestor()

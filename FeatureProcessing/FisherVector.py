@@ -13,11 +13,14 @@ class FisherVectorGMM:
     self.covariance_type = covariance_type
     self.fitted = False
 
+  def score(self, X):
+    return self.gmm.bic(X.reshape(-1, X.shape[-1]))
 
-  def fit(self, X, model_dump_path=None):
+  def fit(self, X, model_dump_path=None, verbose=True):
     """
     :param X: shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
     :param model_dump_path: (optional) path where the fitted model shall be dumped
+    :param verbose - boolean that controls the verbosity
     :return: fitted Fisher vector object
     """
     assert X.ndim == 4
@@ -26,7 +29,7 @@ class FisherVectorGMM:
     X = X.reshape(-1, X.shape[-1])
 
     # fit GMM and store params of fitted model
-    gmm = GaussianMixture(n_components=self.n_kernels, covariance_type=self.covariance_type).fit(X)
+    self.gmm = gmm = GaussianMixture(n_components=self.n_kernels, covariance_type=self.covariance_type).fit(X)
     self.covars = gmm.covariances_
     self.means = gmm.means_
     self.weights = gmm.weights_
@@ -40,14 +43,43 @@ class FisherVectorGMM:
 
     assert self.covars.ndim == 3
     self.fitted = True
-    print('fitted GMM with %i kernels'%self.n_kernels)
+    if verbose:
+      print('fitted GMM with %i kernels'%self.n_kernels)
 
     if model_dump_path:
       with open(model_dump_path, 'wb') as f:
         pickle.dump(self,f)
-      print('Dumped fitted model to', model_dump_path)
+      if verbose:
+        print('Dumped fitted model to', model_dump_path)
 
     return self
+
+  def fit_by_bic(self, X, model_dump_path=None, verbose=True):
+    """
+    Fits the GMM with various n_kernels and selects the model with the lowest BIC
+    :param X: shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
+    :param model_dump_path: (optional) path where the fitted model shall be dumped
+    :param verbose - boolean that controls the verbosity
+    :return: fitted Fisher vector object
+    """
+    n_kernel_choices = [20, 40, 60, 100, 200]
+    bic_scores = []
+    for n_kernels in n_kernel_choices:
+      self.n_kernels = n_kernels
+      bic_score = self.fit(X, verbose=False).score(X)
+      bic_scores.append(bic_score)
+
+      if verbose:
+        print('fitted GMM with %i kernels - BIC = %.4f'%(n_kernels, bic_score))
+
+    best_n_kernels = n_kernel_choices[np.argmin(bic_scores)]
+
+    self.n_kernels = best_n_kernels
+    if verbose:
+      print('Selected GMM with %i kernels' % best_n_kernels)
+
+    return self.fit(X, model_dump_path=model_dump_path, verbose=True)
+
 
   def predict(self, X, normalized=True):
     """

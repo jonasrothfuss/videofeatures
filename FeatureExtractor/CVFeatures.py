@@ -36,14 +36,12 @@ class CVFeatures(BaseFeatures):
       feature_batch_list.append(feature_batch)
       labels.extend(label_batch)
       print("batch %i of %i" % (i, n_batches))
-      if i == 20:
-        break
 
     features = np.concatenate(feature_batch_list, axis=0)
     assert features.shape[0] == len(labels)
     df = pd.DataFrame(data={'label_id': labels, 'features': np.vsplit(features, features.shape[0])})
-    print(df)
     if pickle_path:
+      print('Dumped feature dataframe to', pickle_path)
       df.to_pickle(pickle_path)
 
     return df
@@ -86,7 +84,7 @@ class SURFFeatures(CVFeatures):
       # make sure that descriptors has shape (n_descriptor, 64)
       if descriptors is not None:
         if descriptors.shape[0] < self.n_descriptors:
-          descriptors = np.concatenate([descriptors, np.zeros((self.n_descriptors - descriptors.shape[0], 128))],
+          descriptors = np.concatenate([descriptors, np.zeros((self.n_descriptors - descriptors.shape[0], 64))],
                                        axis=0)
         else:
           descriptors = descriptors[:self.n_descriptors]

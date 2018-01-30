@@ -48,14 +48,12 @@ class VGGFeatures(BaseFeatures):
       feature_batch_list.append(feature_batch)
       labels.extend(label_batch)
       print("batch %i of %i" % (i, n_batches))
-      if i == 50:
-        break
 
     features = np.concatenate(feature_batch_list, axis=0)
     assert features.shape[0] == len(labels)
     df = pd.DataFrame(data={'label_id': labels, 'features': np.vsplit(features, features.shape[0])})
-    print(df)
     if pickle_path:
+      print('Dumped feature dataframe to', pickle_path)
       df.to_pickle(pickle_path)
 
     return df

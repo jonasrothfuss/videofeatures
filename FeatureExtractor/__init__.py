@@ -1,3 +1,3 @@
 from FeatureExtractor.CNNFeatures import VGGFeatures
-from FeatureExtractor.CVFeatures import SIFTFeatures
+from FeatureExtractor.CVFeatures import SIFTFeatures, SURFFeatures
 from FeatureExtractor.BaseFeatureExtractor import BaseFeatures

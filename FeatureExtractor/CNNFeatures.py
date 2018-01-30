@@ -1,15 +1,16 @@
 from keras.applications.vgg16 import VGG16, preprocess_input
 from keras.preprocessing.image import load_img, img_to_array
 from keras.models import Model
+from DatasetProvider import TwentyBNDataset
 from gulpio.loader import DataLoader
 import numpy as np
-import os
-from DatasetProvider import TwentyBNDataset
 import pandas as pd
+
+from FeatureExtractor.BaseFeatureExtractor import BaseFeatures
 
 VIDEO_PATH = "/home/jonasrothfuss/Downloads/Armar_Experiences_Download/video_frames/1"
 
-class VGG:
+class VGGFeatures(BaseFeatures):
   def __init__(self, feature = 'fc1'):
     self.base_model = VGG16()
     assert feature in ["fc1", "fc2"]
@@ -36,7 +37,8 @@ class VGG:
       assert data_batch.ndim == 5
       n_frames = data_batch.shape[1]
 
-      frames_batch = data_batch.reshape((data_batch.shape[0]*n_frames, data_batch.shape[2], data_batch.shape[3], data_batch.shape[4]))
+      frames_batch = data_batch.reshape(
+        (data_batch.shape[0] * n_frames, data_batch.shape[2], data_batch.shape[3], data_batch.shape[4]))
       frames_batch = frames_batch.astype('float32')
 
       feature_batch = self.computeFeatures(frames_batch)
@@ -45,13 +47,13 @@ class VGG:
 
       feature_batch_list.append(feature_batch)
       labels.extend(label_batch)
-      print("batch %i of %i"%(i, n_batches))
-      if i==50:
+      print("batch %i of %i" % (i, n_batches))
+      if i == 50:
         break
 
     features = np.concatenate(feature_batch_list, axis=0)
     assert features.shape[0] == len(labels)
-    df = pd.DataFrame(data={'label_id':labels, 'features': np.vsplit(features, features.shape[0])})
+    df = pd.DataFrame(data={'label_id': labels, 'features': np.vsplit(features, features.shape[0])})
     print(df)
     if pickle_path:
       df.to_pickle(pickle_path)
@@ -60,7 +62,7 @@ class VGG:
 
 
 def main():
-  model = VGG()
+  model = VGGFeatures()
   loader = TwentyBNDataset(batch_size=20).getDataLoader()
   model.computeFeaturesForVideoDataset(loader, pickle_path="/common/homes/students/rothfuss/Desktop/vgg_fc1_20bn.pickle")
 

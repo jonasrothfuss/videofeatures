@@ -1,2 +1,3 @@
-from FeatureExtractor.CNNFeatures import VGG
+from FeatureExtractor.CNNFeatures import VGGFeatures
 from FeatureExtractor.CVFeatures import SIFTFeatures
+from FeatureExtractor.BaseFeatureExtractor import BaseFeatures

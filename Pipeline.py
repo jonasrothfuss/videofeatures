@@ -1,16 +1,46 @@
-from FeatureExtractor import SIFTFeatures, CNNFeatures, SURFFeatures
+from FeatureExtractor import SIFTFeatures, VGGFeatures, SURFFeatures
 from DatasetProvider import TwentyBNDataset
 from FeatureProcessing import FisherVectorGMM
 import pandas as pd
 import numpy as np
 import os, pickle
 
+ModelDumpsDir = './DataDumps/Models'
+FeatureDumpsDir = './DataDumps/Features'
 
+EXTRACTOR_TYPES = ['vgg_fc1', 'vgg_fc2', 'surf', 'sift']
+DATASETS = ['20bn_val', '20bn_train', 'armar_val', 'armar_train']
 
-def extractFeatures(pickle_path):
-  model = SURFFeatures(n_descriptors=10)
-  loader = TwentyBNDataset(batch_size=20).getDataLoader()
-  model.computeFeaturesForVideoDataset(loader, pickle_path=pickle_path)
+def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, pickle_path=None):
+  assert extractor_type in EXTRACTOR_TYPES
+  assert dataset in DATASETS
+
+  ''' 1. Choose Model '''
+  if extractor_type is 'vgg_fc1':
+    extractor = VGGFeatures(feature='fc1')
+  elif extractor_type is 'vgg_fc2':
+    extractor = VGGFeatures(feature='fc2')
+  elif extractor_type is 'surf':
+    extractor = SURFFeatures(n_descriptors=20)
+  elif extractor_type is 'sift':
+    extractor = SIFTFeatures(n_descriptors=5)
+  else:
+    raise NotImplementedError(extractor_type + 'is not implemented')
+
+  ''' 2. Choose Dataset '''
+  if dataset is '20bn_val':
+    loader = TwentyBNDataset(batch_size=batch_size).getDataLoader()
+  elif dataset is '20bn_train':
+    raise NotImplementedError(dataset + 'loader is not implemented') #TODO
+  elif dataset is 'armar_val':
+    raise NotImplementedError(dataset + 'loader is not implemented') #TODO
+  elif dataset is 'armar_train':
+    raise NotImplementedError(dataset + 'loader is not implemented') #TODO
+
+  if not pickle_path:
+    pickle_path = os.path.join(FeatureDumpsDir, extractor_type + '_' + dataset)
+
+  return extractor.computeFeaturesForVideoDataset(loader, pickle_path=pickle_path)
 
 def loadFeatures(feature_df=None, feature_df_path=None):
   '''
@@ -46,17 +76,21 @@ def loadFisherVectorGMM(pickle_path):
   return fv_gmm
 
 def main():
-  #extractFeatures()
+  for extractor in EXTRACTOR_TYPES:
+    extractFeatures(extractor_type=extractor, dataset='20bn_val')
+
   #features = loadFeaturesForTraining(feature_df_path='"/common/homes/students/rothfuss/Desktop/SURFfeatures_10_20bn_valid.pickle"')
   #features = loadFeaturesForTraining(feature_df_path='/common/homes/students/rothfuss/Desktop/SURF_20bn.pickle')
-  features = loadFeatures(feature_df_path='/common/homes/students/rothfuss/Desktop/SURF_20bn.pickle')
-  print(features.shape)
-  fv_gmm = FisherVectorGMM(n_kernels=20)
-  fv_gmm.fit_by_bic(features, model_dump_path='/common/homes/students/rothfuss/Desktop/SURF_20bn_model.pickle')
 
-  #fv_gmm = loadFisherVectorGMM('/common/homes/students/rothfuss/Desktop/SURF_20bn_model.pickle')
-  fv = fv_gmm.predict(features)
-  print(fv)
+  #
+  # features = loadFeatures(feature_df_path='/common/homes/students/rothfuss/Desktop/SURF_20bn.pickle')
+  # print(features.shape)
+  # fv_gmm = FisherVectorGMM(n_kernels=20)
+  # fv_gmm.fit_by_bic(features, model_dump_path='/common/homes/students/rothfuss/Desktop/SURF_20bn_model.pickle')
+  #
+  # #fv_gmm = loadFisherVectorGMM('/common/homes/students/rothfuss/Desktop/SURF_20bn_model.pickle')
+  # fv = fv_gmm.predict(features)
+  # print(fv)
 
 
 

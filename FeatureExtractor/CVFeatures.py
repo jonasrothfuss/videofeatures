@@ -14,7 +14,7 @@ class CVFeatures(BaseFeatures):
     Computes Feature Vectors for the video dataset provided via a dataloader object
     :param dataloader: gulpIO Dataloader object which represents a dataset
     :param pickle_path: (optional) if provided the features are pickeled to the specified location
-    :return: pandas Dataframe with two columns holding the featurevectors and the label_id of each video
+    :return: (features, labels) - features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels of videos
     """
     assert isinstance(dataloader, DataLoader)
 
@@ -38,13 +38,14 @@ class CVFeatures(BaseFeatures):
       print("batch %i of %i" % (i, n_batches))
 
     features = np.concatenate(feature_batch_list, axis=0)
-    assert features.shape[0] == len(labels)
-    df = pd.DataFrame(data={'label_id': labels, 'features': np.vsplit(features, features.shape[0])})
+    assert features.shape[0] == len(labels) and features.ndim == 4
+
     if pickle_path:
+      df = pd.DataFrame(data={'label_id': labels, 'features': np.vsplit(features, features.shape[0])})
       print('Dumped feature dataframe to', pickle_path)
       df.to_pickle(pickle_path)
 
-    return df
+    return features, labels
 
 class SIFTFeatures(CVFeatures):
 

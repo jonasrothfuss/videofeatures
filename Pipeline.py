@@ -77,6 +77,7 @@ def loadFeatures(feature_df=None, feature_df_path=None):
   assert features.ndim == 4 and len(labels) == features.shape[0]
   return features, labels
 
+
 def trainFisherVectorGMM(features, by_bic=True, model_dump_path=None, n_kernels=20):
   """
   trains a GMM for Fisher Vectors on the given features.
@@ -102,7 +103,7 @@ def loadFisherVectorGMM(pickle_path):
   assert isinstance(fv_gmm, FisherVectorGMM)
   return fv_gmm
 
-def computeFisherVectors(features, fv_gmm, normalized=True):
+def computeFisherVectors(features, fv_gmm, normalized=True, pickle_path=None):
   """
   :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
   :param fv_gmm: fitted FisherVectorGMM instance
@@ -111,16 +112,65 @@ def computeFisherVectors(features, fv_gmm, normalized=True):
   """
   assert isinstance(fv_gmm, FisherVectorGMM)
   assert features
-  return fv_gmm.predict(features, normalized=normalized)
+
+  if not pickle_path:
+    pickle_path = os.path.join(FeatureDumpsDir, "gmm_fisher_vectors" + ".pickle" )
+
+  fv = fv_gmm.predict(features, normalized=normalized)
+  pd.to_pickle(fv, pickle_path)
+  print("Fisher vectors pickled to ", pickle_path)
+
+  return fv
+
+
+
+
+def loadFisherVectors(fisher_vector_path):
+  '''
+  loads fisher vectors from pd dataframe and returns them as a matrix
+  :param feature_df: pandas dataframe which holds features in a column 'features'
+  :param feature_df_path: path to pandas dataframe that holds features
+  :return: (features, labels) - features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (list) of videos
+  '''
+  assert fisher_vector_path is not None
+  assert os.path.isfile(fisher_vector_path)
+
+  fisher_vectors_df = pd.read_pickle(fisher_vector_path)
+  return fisher_vectors_df
+
+  #
+  # assert 'features' in feature_df and 'labels' in feature_df
+  #
+  # # stack video features to a 2d matrix
+  # features = np.concatenate(feature_df['features'], axis=0)
+  #
+  # labels = list(feature_df['labels'])
+  #
+  # if features.ndim == 3:  # assume only one feature vector is given -> insert dimension
+  #   features = features.reshape((features.shape[0], features.shape[1], 1, features.shape[2]))
+  #
+  # assert features.ndim == 4 and len(labels) == features.shape[0]
+  # return features, labels
+
 
 def main():
-  # for extractor in EXTRACTOR_TYPES:
-  #   extractFeatures(extractor_type=extractor, dataset='20bn_val')
+  #for extractor in EXTRACTOR_TYPES:
+  #  extractFeatures(extractor_type=extractor, dataset='20bn_val')
+
+
+  features, labels = extractFeatures(extractor_type='vgg_fc2', dataset='20bn_val')
+  fv_gmm = trainFisherVectorGMM(features)
+  fisher_vectors = computeFisherVectors(features, fv_gmm)
+
 
   #features = loadFeaturesForTraining(feature_df_path='"/common/homes/students/rothfuss/Desktop/SURFfeatures_10_20bn_valid.pickle"')
-  features = loadFeatures(feature_df_path=os.path.join(FeatureDumpsDir, 'surf_20bn_val'))
+  #features = loadFeatures(feature_df_path=os.path.join(FeatureDumpsDir, 'surf_20bn_val'))
 
-  print(features)
+  #print(features)
+
+  #loadFisherVectors(pickle_path)
+
+
   #
   # features = loadFeatures(feature_df_path='/common/homes/students/rothfuss/Desktop/SURF_20bn.pickle')
   # print(features.shape)

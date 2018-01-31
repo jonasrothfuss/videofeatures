@@ -41,7 +41,7 @@ class CVFeatures(BaseFeatures):
     assert features.shape[0] == len(labels) and features.ndim == 4
 
     if pickle_path:
-      df = pd.DataFrame(data={'label_id': labels, 'features': np.vsplit(features, features.shape[0])})
+      df = pd.DataFrame(data={'labels': labels, 'features': np.vsplit(features, features.shape[0])})
       print('Dumped feature dataframe to', pickle_path)
       df.to_pickle(pickle_path)
 

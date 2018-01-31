@@ -103,7 +103,8 @@ def loadFisherVectorGMM(pickle_path):
   assert isinstance(fv_gmm, FisherVectorGMM)
   return fv_gmm
 
-def computeFisherVectors(features, fv_gmm, normalized=True, pickle_path=None):
+
+def computeFisherVectors(features, labels, fv_gmm, normalized=True, pickle_path=None):
   """
   :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
   :param fv_gmm: fitted FisherVectorGMM instance
@@ -111,17 +112,19 @@ def computeFisherVectors(features, fv_gmm, normalized=True, pickle_path=None):
   :return: fisher vectors - ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
   """
   assert isinstance(fv_gmm, FisherVectorGMM)
-  assert features
+  assert isinstance(features, np.ndarray)
+  assert features.ndim == 4
 
   if not pickle_path:
     pickle_path = os.path.join(FeatureDumpsDir, "gmm_fisher_vectors" + ".pickle" )
 
   fv = fv_gmm.predict(features, normalized=normalized)
-  pd.to_pickle(fv, pickle_path)
-  print("Fisher vectors pickled to ", pickle_path)
 
-  return fv
+  df = pd.DataFrame(data={'labels': labels, 'features': np.vsplit(fv, features.shape[0])})
+  print('Dumped feature dataframe to', pickle_path)
+  df.to_pickle(pickle_path)
 
+  return df
 
 
 
@@ -158,15 +161,13 @@ def main():
   #  extractFeatures(extractor_type=extractor, dataset='20bn_val')
 
 
-  features, labels = extractFeatures(extractor_type='vgg_fc2', dataset='20bn_val')
-  fv_gmm = trainFisherVectorGMM(features)
-  fisher_vectors = computeFisherVectors(features, fv_gmm)
-
-
-  #features = loadFeaturesForTraining(feature_df_path='"/common/homes/students/rothfuss/Desktop/SURFfeatures_10_20bn_valid.pickle"')
+  #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')
+  features, labels = loadFeatures(feature_df_path='./DataDumps/Features/vgg_fc1_20bn_val')
+  fv_gmm = trainFisherVectorGMM(features, by_bic=False)
+  fisher_vectors = computeFisherVectors(features[:100], labels[:100], fv_gmm)
+  fisher_df = loadFisherVectors("./DataDumps/Features/gmm_fisher_vectors.pickle")
+  print(fisher_df)
   #features = loadFeatures(feature_df_path=os.path.join(FeatureDumpsDir, 'surf_20bn_val'))
-
-  #print(features)
 
   #loadFisherVectors(pickle_path)
 

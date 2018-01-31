@@ -62,7 +62,7 @@ class FisherVectorGMM:
     :param verbose - boolean that controls the verbosity
     :return: fitted Fisher vector object
     """
-    n_kernel_choices = [20, 40, 60, 100, 200]
+    n_kernel_choices = [20, 40, 60, 100, 150]
     bic_scores = []
     for n_kernels in n_kernel_choices:
       self.n_kernels = n_kernels
@@ -83,10 +83,10 @@ class FisherVectorGMM:
 
   def predict(self, X, normalized=True):
     """
-      Computes Fisher Vectors of provided X
-      :param X: features - ndarray of shape (n_videos, n_frames, n_features, n_feature_dim)
-      :param normalized: boolean that indicated whether the fisher vectors shall be normalized --> improved fisher vector
-      :returns fv: fisher vectors - ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
+    Computes Fisher Vectors of provided X
+    :param X: features - ndarray of shape (n_videos, n_frames, n_features, n_feature_dim)
+    :param normalized: boolean that indicated whether the fisher vectors shall be normalized --> improved fisher vector
+    :returns fv: fisher vectors - ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
     """
     assert self.fitted, "Model (GMM) must be fitted"
     assert self.feature_dim == X.shape[-1], "Features must have same dimensionality as fitted GMM"
@@ -98,8 +98,24 @@ class FisherVectorGMM:
     X_matrix = X.reshape(-1, X.shape[-1])
 
     #likelihood ratio
-    gaussians = [multivariate_normal(mean=self.means[k], cov=self.covars[k]) for k in range(self.n_kernels)]
-    likelihood = np.vstack([g.pdf(X_matrix) for g in gaussians]).T
+    #gaussians = [multivariate_normal(mean=self.means[k], cov=self.covars[k]) for k in range(self.n_kernels)]
+    #likelihood = np.vstack([multivariate_normal.pdf(X_matrix / 10**7, mean=self.means[k] / 10**7, cov=self.covars[k]/10**7) for k in range(self.n_kernels)]).T
+
+    gaussians = []
+    for k in range(self.n_kernels):
+      g = GaussianMixture(n_components=1, covariance_type='diag')
+      g._fitted = True
+      g.means_ = self.means[k].reshape((1,-1))
+      g.weights_ = np.asarray([1.])
+      g.covariances_ = np.diag(self.covars[k]).reshape((1,-1))
+
+      g.precisions_ = np.ones(g.covariances_.shape) / g.covariances_ # inverse of diagonal cov matrix is 1/cov of diagonals
+      g.precisions_cholesky_ = np.sqrt(g.precisions_) # since in the diagonal case the diag elements are squared for cholesky, we can get it by square rooting
+
+      gaussians.append(g)
+
+
+    likelihood = np.vstack([g.predict_proba(X_matrix) for g in gaussians]).T
     likelihood_ratio = likelihood / likelihood.sum(axis=-1)[:, None]
     likelihood_ratio = likelihood_ratio.reshape(X.shape[0], X.shape[1], self.n_kernels) #(n_images, n_features, n_kernels)
 

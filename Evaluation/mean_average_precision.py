@@ -1,6 +1,7 @@
-import nearest_neighbor
+from Evaluation import nearest_neighbor
 import pandas as pd
 import numpy as np
+
 
 def compute_mean_average_precision(df_base, df_query, n_closest_matches=5):
   """

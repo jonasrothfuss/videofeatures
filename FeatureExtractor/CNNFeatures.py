@@ -1,4 +1,6 @@
-from keras.applications.vgg16 import VGG16, preprocess_input
+
+import keras.applications.vgg16 as vgg16
+import keras.applications.resnet50 as resnet50
 from keras.preprocessing.image import load_img, img_to_array
 from keras.models import Model
 from DatasetProvider import TwentyBNDataset
@@ -10,16 +12,8 @@ from FeatureExtractor.BaseFeatureExtractor import BaseFeatures
 
 VIDEO_PATH = "/home/jonasrothfuss/Downloads/Armar_Experiences_Download/video_frames/1"
 
-class VGGFeatures(BaseFeatures):
-  def __init__(self, feature = 'fc1'):
-    self.base_model = VGG16()
-    assert feature in ["fc1", "fc2"]
-    self.model = Model(inputs=self.base_model.input, outputs=self.base_model.get_layer(feature).output)
 
-  def computeFeatures(self, video):
-    x = preprocess_input(video)
-    features = self.model.predict(x)
-    return features
+class CNNFeatures:
 
   def computeFeaturesForVideoDataset(self, dataloader, pickle_path=None):
     """
@@ -52,7 +46,7 @@ class VGGFeatures(BaseFeatures):
     features = np.concatenate(feature_batch_list, axis=0)
 
     # reshape features to (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
-    features = features.reshape((features.shape[0],features.shape[1], 1, features.shape[2]))
+    features = features.reshape((features.shape[0], features.shape[1], 1, features.shape[2]))
     assert features.shape[0] == len(labels) and features.ndim == 4
 
     # store as pandas dataframe
@@ -62,6 +56,31 @@ class VGGFeatures(BaseFeatures):
       df.to_pickle(pickle_path)
 
     return features, labels
+
+
+class VGGFeatures(CNNFeatures):
+
+  def __init__(self, feature = 'fc1'):
+    self.base_model = vgg16.VGG16()
+    assert feature in ["fc1", "fc2"]
+    self.model = Model(inputs=self.base_model.input, outputs=self.base_model.get_layer(feature).output)
+
+  def computeFeatures(self, video):
+    x = vgg16.preprocess_input(video)
+    features = self.model.predict(x)
+    return features
+
+
+class ResNetFeatures(CNNFeatures):
+  def __init__(self):
+    self.base_model = resnet50.ResNet50()
+    print(self.base_model.summary())
+    self.model = Model(inputs=self.base_model.input, outputs=self.base_model.get_layer('avg_pool').output)
+
+  def computeFeatures(self, video):
+    x = resnet50.preprocess_input(video)
+    features = self.model.predict(x)
+    return features.reshape((-1, 2048))
 
 
 def main():

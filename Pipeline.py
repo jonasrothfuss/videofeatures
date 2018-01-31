@@ -1,4 +1,4 @@
-from FeatureExtractor import SIFTFeatures, VGGFeatures, SURFFeatures
+from FeatureExtractor import SIFTFeatures, VGGFeatures, ResNetFeatures, SURFFeatures
 from DatasetProvider import TwentyBNDataset
 from FeatureProcessing import FisherVectorGMM
 import pandas as pd
@@ -8,7 +8,7 @@ import os, pickle
 ModelDumpsDir = './DataDumps/Models'
 FeatureDumpsDir = './DataDumps/Features'
 
-EXTRACTOR_TYPES = ['vgg_fc1', 'vgg_fc2', 'surf', 'sift']
+EXTRACTOR_TYPES = ['resnet', 'vgg_fc1', 'vgg_fc2', 'surf', 'sift']
 DATASETS = ['20bn_val', '20bn_train', 'armar_val', 'armar_train']
 
 def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, pickle_path=None):
@@ -24,7 +24,9 @@ def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, pic
   assert dataset in DATASETS
 
   ''' 1. Choose Model '''
-  if extractor_type is 'vgg_fc1':
+  if extractor_type is 'resnet':
+    extractor =  ResNetFeatures()
+  elif extractor_type is 'vgg_fc1':
     extractor = VGGFeatures(feature='fc1')
   elif extractor_type is 'vgg_fc2':
     extractor = VGGFeatures(feature='fc2')
@@ -46,7 +48,7 @@ def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, pic
     raise NotImplementedError(dataset + 'loader is not implemented') #TODO
 
   if not pickle_path:
-    pickle_path = os.path.join(FeatureDumpsDir, extractor_type + '_' + dataset)
+    pickle_path = os.path.join(FeatureDumpsDir, extractor_type + '_' + dataset + '.pickle')
 
   return extractor.computeFeaturesForVideoDataset(loader, pickle_path=pickle_path)
 
@@ -157,16 +159,16 @@ def loadFisherVectors(fisher_vector_path):
 
 
 def main():
-  #for extractor in EXTRACTOR_TYPES:
-  #  extractFeatures(extractor_type=extractor, dataset='20bn_val')
+  for extractor in ['resnet']:
+    extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=2)
 
 
   #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')
-  features, labels = loadFeatures(feature_df_path='./DataDumps/Features/vgg_fc1_20bn_val')
-  fv_gmm = trainFisherVectorGMM(features, by_bic=False)
-  fisher_vectors = computeFisherVectors(features[:100], labels[:100], fv_gmm)
-  fisher_df = loadFisherVectors("./DataDumps/Features/gmm_fisher_vectors.pickle")
-  print(fisher_df)
+  # features, labels = loadFeatures(feature_df_path='./DataDumps/Features/vgg_fc1_20bn_val')
+  # fv_gmm = trainFisherVectorGMM(features, by_bic=False)
+  # fisher_vectors = computeFisherVectors(features[:100], labels[:100], fv_gmm)
+  # fisher_df = loadFisherVectors("./DataDumps/Features/gmm_fisher_vectors.pickle")
+  # print(fisher_df)
   #features = loadFeatures(feature_df_path=os.path.join(FeatureDumpsDir, 'surf_20bn_val'))
 
   #loadFisherVectors(pickle_path)

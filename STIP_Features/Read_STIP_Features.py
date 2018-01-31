@@ -74,7 +74,7 @@ def readSIFTFeatureFile(file_path, n_descriptors=30, pickle_path=None):
     return features, labels
 
 def main():
-  readSIFTFeatureFile(SIFT_FEAT_FILE, pickle_path=os.path.join(FeatureDumpsDir, '20bn_val_sift.pickle'))
+  readSIFTFeatureFile(SIFT_FEAT_FILE, pickle_path=os.path.join(FeatureDumpsDir, 'stip_20bn_val.pickle'))
 
 if __name__ == '__main__':
   main()

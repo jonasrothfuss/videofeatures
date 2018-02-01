@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 
-SIFT_FEAT_FILE = '/PDFData/rothfuss/data/20bn-something/SIFT/20bn_val_SIFT/20bn_val_sift_test.txt'
+SIFT_FEAT_FILE = '/PDFData/rothfuss/data/20bn-something/STIP/20bn_val_STIP/20bn_val_STIP.txt'
 CSV_20BN_VALID = '/PDFData/rothfuss/data/20bn-something/something-something-v1-validation.csv'
 FeatureDumpsDir = './../DataDumps/Features'
 
@@ -71,10 +71,11 @@ def readSIFTFeatureFile(file_path, n_descriptors=30, pickle_path=None):
       print('Dumped feature dataframe to', pickle_path)
       df.to_pickle(pickle_path)
 
+    print('STIP features shape:', features.shape)
     return features, labels
 
 def main():
-  readSIFTFeatureFile(SIFT_FEAT_FILE, pickle_path=os.path.join(FeatureDumpsDir, 'stip_20bn_val.pickle'))
+  readSIFTFeatureFile(SIFT_FEAT_FILE, pickle_path=os.path.join(FeatureDumpsDir, 'features_stip_20bn_val.pickle'))
 
 if __name__ == '__main__':
   main()

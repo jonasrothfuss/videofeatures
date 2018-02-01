@@ -1,56 +1,50 @@
 from math import sqrt
 import numpy as np
+from sklearn.metrics.pairwise import pairwise_distances
+import os
+import pandas as pd
 
-def find_nearest_neighbors(df, query_idx=None, hidden_repr=None, class_column='shape', n_closest_matches=5):
-  """
-  finds the closest vector matches by cosine similarity metric for a given query vector within the df dataframe
-  :param df: dataframe containing hidden vectors + metadata
-  :param query_idx: index of the query vector in the df
-  :param hidden_repr: query vector
-  :param num_vectors: denotes how many of the closest vector matches shall be returned
-  :return: list of tuples (i, cos_sim, label) correspondig to the num_vectors closest vector matches
-  """
-  assert 'hidden_repr' in df.columns
-  assert bool(query_idx is not None) != bool(
-    hidden_repr is not None), "Either query_idx or hidden_repr can be set, but not both at the same time"
-  assert not query_idx or query_idx in df.index
+def nearestNeighborMatching(memory_features, memory_labels, query_features, query_labels, n_closest_matches=-1, metric='cosine'):
+  '''
+  finds the closest vector matches (cos_similarity) for queries in the memory
+  :param memory_features: memory feature vectors - ndarray of shape (memory_size, n_feature_dim)
+  :param memory_labels: labels corresponding to the feature vectors in the memory - ndarray of shape (memory_size,)
+  :param query_features: query feature vectors - ndarray of shape (query_size, n_feature_dim)
+  :param query_labels: labels corresponding to the feature vectors in the query - ndarray of shape (query_size,)
+  :param n_closest_matches: number of neighbors to be considered - default: -1 : consider all vectors in the memory
+  :param metric: distance metric to use e.g. 'cosine', 'euclidean', 'mahalanobis'
+  :return: dataframe of shape (query_size, memory_size + 1) containing the labels of matched vectors
 
-  if query_idx:
-    query_row = df.iloc[query_idx]
-    query_class = query_row[class_column]
-    query_v_id = query_row["video_id"]
-    remaining_df = df[df.index != query_idx]
-    hidden_repr = query_row['hidden_repr']
-  else:
-    remaining_df = df
+           the df looks as follows:
 
-  cos_distances = [(compute_cosine_similarity(v, hidden_repr), l, int(v_id)) for _, v, l, v_id in
-                   zip(remaining_df.index, remaining_df['hidden_repr'], remaining_df[class_column],
-                       remaining_df['video_id'])]
-  sorted_distances = sorted(cos_distances, key=lambda tup: tup[0], reverse=True)
+            pred_class_0      pred_class_1      pred_class_2  ....  true_class
 
-  if query_idx:
-    sorted_distances = [tup for tup in sorted_distances if tup[2] != query_v_id]
-    print([l for _, l, _ in sorted_distances[:n_closest_matches]].count(query_class), query_v_id)
-  return sorted_distances[:n_closest_matches]
+            label_match1      label_match2      label_match3  ....  label_query
+
+  '''
+
+  ''' Preconditions and Preprocessing '''
+  assert isinstance(memory_labels, list) or memory_labels.ndim == 1
+  assert isinstance(query_labels, list) or query_labels.ndim == 1
+  memory_labels, query_labels = np.asarray(memory_labels),  np.asarray(query_labels)
+
+  memory_features = memory_features.reshape((memory_features.shape[0], -1))
+  query_features = query_features.reshape((query_features.shape[0], -1))
+  assert memory_features.shape[1] == query_features.shape[1]
+  assert memory_features.shape[0] == memory_labels.shape[0] and  query_features.shape[0] == query_labels.shape[0]
+
+  cos_distances = pairwise_distances(memory_features, query_features, metric=metric)
+  # get indices of n maximum values in ndarray, reverse the list (highest is leftmost)
+  indices_closest = cos_distances.argsort()[:-n_closest_matches-1:-1] if n_closest_matches > 0 else cos_distances.argsort()
+
+  retrieved_labels_dict= dict([(i, query_labels[indices_closest[:, i]]) for i in range(query_labels.shape[0])])
 
 
-def compute_cosine_similarity(vector_a, vector_b):
-  """
-  Computes the cosine similarity for the two given vectors.
-  :param vector_a:
-  :param vector_b:
-  :return:
-  """
-  assert np.shape(vector_a) == np.shape(vector_b)
-  if vector_a.ndim >= 2:
-    vector_a = vector_a.flatten()
-  if vector_b.ndim >= 2:
-    vector_b = vector_b.flatten()
+  df = pd.DataFrame.from_dict(retrieved_labels_dict, orient='index')
+  df.columns = ['pred_class_{}'.format(i) for i in range(memory_features.shape[0])]
+  df["true_class"] = query_labels
 
-  numerator = sum(a * b for a, b in zip(vector_a, vector_b))
-  denominator = square_rooted(vector_a) * square_rooted(vector_b)
-  return round(numerator / float(denominator), 3)
+  assert df.shape[0] == query_labels.shape[0] and (df.shape[1] == memory_labels.shape[0] + 1 or df.shape[1] == n_closest_matches + 1)
+  print(df)
+  return df
 
-def square_rooted(x):
-  return round(sqrt(sum([a * a for a in x])), 3)

@@ -6,20 +6,25 @@ import pandas as pd
 import numpy as np
 import os, pickle
 from sklearn.model_selection import KFold
+import logging
 
 ModelDumpsDir = './DataDumps/Models'
 FeatureDumpsDir = './DataDumps/Features'
+FisherVectorDumpsDir = './DataDumps/FisherVectors'
+LogDir = './DataDumps/Logs'
+ResultsDir = './DataDumps/Results'
 
 EXTRACTOR_TYPES = ['resnet', 'vgg_fc1', 'vgg_fc2', 'surf', 'sift']
+EXTERNALLY_EXTRACTED_FEATURES = ['stip']
 DATASETS = ['20bn_val', '20bn_train', 'armar_val', 'armar_train']
 
-def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, pickle_path=None):
+def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, feature_dump_path=None):
   """
   Extracts features from (gulped) dataset
   :param extractor_type: str denoting the feature extractor type
   :param dataset: str denoting the dataset extractor type
   :param batch_size: number of videos per batch
-  :param pickle_path: (optional) if set the features are stored as pandas df to the denoted location, else the df is dumped to the default path /DataDumps/Features
+  :param feature_dump_path: (optional) if set the features are stored as pandas df to the denoted location, else the df is dumped to the default path /DataDumps/Features
   :return: (features, labels) - features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels of videos
   """
   assert extractor_type in EXTRACTOR_TYPES
@@ -49,24 +54,21 @@ def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, pic
   elif dataset is 'armar_train':
     raise NotImplementedError(dataset + 'loader is not implemented') #TODO
 
-  if not pickle_path:
-    pickle_path = os.path.join(FeatureDumpsDir, extractor_type + '_' + dataset + '.pickle')
+  if not feature_dump_path:
+    feature_dump_path = os.path.join(FeatureDumpsDir, extractor_type + '_' + dataset + '.pickle')
 
-  return extractor.computeFeaturesForVideoDataset(loader, pickle_path=pickle_path)
+  return extractor.computeFeaturesForVideoDataset(loader, pickle_path=feature_dump_path)
 
-def loadFeatures(feature_df=None, feature_df_path=None):
+
+def loadFeatures(feature_df_path):
   '''
   loads features from pd dataframe and returns them as a matrix
-  :param feature_df: pandas dataframe which holds features in a column 'features'
   :param feature_df_path: path to pandas dataframe that holds features
   :return: (features, labels) - features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (list) of videos
   '''
-  assert feature_df is not None or feature_df_path is not None
 
-  #load feature df
-  if feature_df_path:
-    assert os.path.isfile(feature_df_path)
-    feature_df = pd.read_pickle(feature_df_path)
+  assert os.path.isfile(feature_df_path)
+  feature_df = pd.read_pickle(feature_df_path)
 
   assert 'features' in feature_df and 'labels' in feature_df
 
@@ -82,7 +84,7 @@ def loadFeatures(feature_df=None, feature_df_path=None):
   return features, labels
 
 
-def trainFisherVectorGMM(features, by_bic=True, model_dump_path=None, n_kernels=20):
+def trainFisherVectorGMM(features, by_bic=True, model_dump_path=None, n_kernels=50):
   """
   trains a GMM for Fisher Vectors on the given features.
   :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (list) of videos
@@ -108,7 +110,7 @@ def loadFisherVectorGMM(pickle_path):
   return fv_gmm
 
 
-def computeFisherVectors(features, labels, fv_gmm, normalized=True, pickle_path=None):
+def computeFisherVectors(features, labels, fv_gmm, normalized=True, fv_dump_path=None):
   """
   :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
   :param labels: labels correspodning to features - array of shape (n_videos,)
@@ -122,20 +124,19 @@ def computeFisherVectors(features, labels, fv_gmm, normalized=True, pickle_path=
 
   labels = np.asarray(labels)
   assert labels.ndim ==1
-  assert features.shape == labels.shape[0]
+  assert features.shape[0] == labels.shape[0]
 
-  if not pickle_path:
-    pickle_path = os.path.join(FeatureDumpsDir, "gmm_fisher_vectors" + ".pickle" )
+  if not fv_dump_path:
+    fv_dump_path = os.path.join(FeatureDumpsDir, "gmm_fisher_vectors" + ".pickle")
 
   fv = fv_gmm.predict(features, normalized=normalized)
 
   df = pd.DataFrame(data={'labels': labels, 'features': np.vsplit(fv, features.shape[0])})
-  print('Dumped feature dataframe to', pickle_path)
-  df.to_pickle(pickle_path)
+  print('Dumped feature dataframe to', fv_dump_path)
+  df.to_pickle(fv_dump_path)
 
   assert fv.shape[0] == labels.shape[0]
   return fv, labels
-
 
 
 def loadFisherVectors(fisher_vector_path):
@@ -202,15 +203,111 @@ def evaluateMatching(feature_vectors, labels, n_splits=5, distance_metrics=['cos
 
   return result_dict
 
+def setup_logger(logfile_name = 'piplineRuns.log'):
+  log_file_path = os.path.join(LogDir, logfile_name)
+  logger = logging.getLogger('PipelinRunLogger')
+  logger.setLevel(logging.INFO)
+  fh = logging.FileHandler(log_file_path)
+  fh.setLevel(logging.DEBUG)
+  ch = logging.StreamHandler()
+  ch.setLevel(logging.INFO)
+  formatter = logging.Formatter('[%(asctime)s - %(levelname)s] %(message)s')
+  fh.setFormatter(formatter)
+  ch.setFormatter(formatter)
+  logger.addHandler(fh)
+  logger.addHandler(ch)
+
+  return logger
+
+def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, dataset='20bn_val'):
+  assert dataset in DATASETS, 'Dataset must be one of the following: ' + str(DATASETS)
+
+  #set up logging
+  logger = setup_logger(logfile_name = 'piplineRuns.log')
+
+  logger.info('----- START PIPELINE RUN -----')
+  logger.info('CONFIGS: [extractFeat: {}, trainGMM: {}, computeFV: {}, dataset: {}]'.format(extractFeat, trainGMM, computeFV, dataset))
+
+  overall_result_dict = {}
+
+  for extractor in EXTRACTOR_TYPES:
+
+    ''' 1. Extract / Load Features '''
+    if extractFeat:
+      logger.info('Started extracting {} features from {} dataset'.format(extractor, dataset))
+      features, labels = extractFeatures(extractor_type=extractor, dataset=dataset,
+                                         feature_dump_path=getDumpFileName(extractor, dataset, 'features'))
+      logger.info('Finished extracting {} features from {} dataset. Dumped features to {}'.format(extractor, dataset, getDumpFileName(extractor, dataset, 'features')))
+
+    else: # load features
+      features, labels = loadFeatures(getDumpFileName(extractor, dataset, 'features'))
+      logger.info('Loaded {} features from {}'.format(extractor, getDumpFileName(extractor, dataset, 'features')))
+
+
+    ''' 2. Train / Load Fisher Vector GMM '''
+    if trainGMM:
+      logger.info('Started training FisherVector GMM')
+      fv_gmm = trainFisherVectorGMM(features, by_bic=False, model_dump_path=getDumpFileName(extractor, dataset, 'model'))
+      logger.info('Finished training FisherVector GMM. Dumped model to {}'.format(getDumpFileName(extractor, dataset, 'model')))
+
+    else: #load model
+      fv_gmm = loadFisherVectorGMM(getDumpFileName(extractor, dataset, 'model'))
+      logger.info('Loaded FisherVector GMM from {}'.format(getDumpFileName(extractor, dataset, 'model')))
+
+
+    ''' 3. Compute / Load Fisher Vectors '''
+    if computeFV:
+      logger.info('Started Computing Fisher Vectors')
+      fv, labels = computeFisherVectors(features, labels, fv_gmm, normalized=True,
+                                fv_dump_path=getDumpFileName(extractor, dataset, 'fisher_vectors'))
+      logger.info('Finished computing Fisher Vectors. Dumped vectors to {}'.format(getDumpFileName(extractor, dataset, 'fisher_vectors')))
+
+    else:
+      fv, labels = loadFisherVectors(getDumpFileName(extractor, dataset, 'fisher_vectors'))
+      logger.info('Loaded Fisher Vectors from {}'.format(getDumpFileName(extractor, dataset, 'fisher_vectors')))
+
+    ''' 4. Evaluate Matching '''
+    n_splits = 5
+    distance_metrics = ['cosine', 'euclidean']
+
+    logger.info('Starting to evaluate matching results (n_splits={}, distance_metrics={})'.format(n_splits, distance_metrics))
+    matching_result_dict = evaluateMatching(fv, labels, n_splits=5, distance_metrics=['cosine', 'euclidean'])
+
+    logger.info('Finished matching evaluation of {} features from {} dataset - Results: \n{}'.format(extractor, dataset, matching_result_dict))
+
+    overall_result_dict[extractor] = matching_result_dict
+
+def getDumpFileName(extractor, dataset, type):
+  assert type in ['features', 'model', 'fisher_vectors']
+  if type is 'features':
+    return os.path.join(FeatureDumpsDir, 'features_' + extractor + '_' + dataset + '.pickle')
+  elif type is 'model':
+    return os.path.join(ModelDumpsDir, 'model_' + extractor + '_' + dataset + '.pickle')
+  elif type is 'fisher_vectors':
+    return os.path.join(FisherVectorDumpsDir, 'fv_' + extractor + '_' + dataset + '.pickle')
+
+def overall_result_dict_to_df(result_dict):
+ pass
 
 def main():
   #for extractor in ['resnet']:
   #  extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=2)
 
-  features = np.random.normal(size=(2000, 300))
-  labels = list(np.random.randint(1, 3, size=(2000)))
+  runEntirePipeline(extractFeat=True)
 
-  evaluateMatching(features, labels)
+  # features = np.random.normal(size=(2000, 300))
+  # labels = list(np.random.randint(1, 3, size=(2000)))
+  #
+  # evaluateMatching(features, labels)
+
+  result_dict = {'20bn_val' : {'cosine': {'mAP': 0.07876077283840946, 'precision_at_1': 0.04166666666666667, 'precision_at_3': 0.02777777777777778,
+              'precision_at_5': 0.026666666666666665, 'precision_at_10': 0.03583333333333333},
+   'euclidean': {'mAP': 0.07876077283840946, 'precision_at_1': 0.04166666666666667,
+                 'precision_at_3': 0.02777777777777778, 'precision_at_5': 0.026666666666666665,
+                 'precision_at_10': 0.03583333333333333}}}
+
+  overall_result_dict_to_df(result_dict)
+
 
 
   #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')

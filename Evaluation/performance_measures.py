@@ -55,16 +55,3 @@ def precision_at_k(df_nearest_neighbor, k):
   matches = df_pred_classes.isin(df_nearest_neighbor.true_class).as_matrix()
 
   return np.mean(matches)
-
-
-if __name__ == '__main__':
-  n_memory_feat, n_query_feat = 1000, 500
-
-  memory_features = np.random.normal(size=(n_memory_feat, 3000))
-  query_features = np.random.normal(size=(n_query_feat, 3000))
-  memory_labels = list(np.random.randint(1, 3, size=(n_memory_feat)))
-  query_labels = list(np.random.randint(1, 3, size=(n_query_feat)))
-
-  df_nearest_neighbors = nearest_neighbor.nearestNeighborMatching(memory_features, memory_labels, query_features, query_labels)
-  map = compute_precision_at_k(df_nearest_neighbors, k=2)
-  print(map)

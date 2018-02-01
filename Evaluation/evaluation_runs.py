@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
   dicts = Parallel(n_jobs=8)(delayed(run_evaluation)(path_to_pickle, use_pca=setting[0], n_components=setting[1],
                                         label_column_name=LABEL_COLUMN_NAME,
-                                        features_column_label=FEATURES_COLUMN_NAME) for setting in settings)
+                                        features_column_name=FEATURES_COLUMN_NAME) for setting in settings)
   print(dicts)
 
 

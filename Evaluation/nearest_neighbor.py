@@ -25,6 +25,7 @@ def nearestNeighborMatching(memory_features, memory_labels, query_features, quer
 
   '''
 
+
   ''' Preconditions and Preprocessing '''
   assert isinstance(memory_labels, list) or memory_labels.ndim == 1
   assert isinstance(query_labels, list) or query_labels.ndim == 1
@@ -35,11 +36,11 @@ def nearestNeighborMatching(memory_features, memory_labels, query_features, quer
   assert memory_features.shape[1] == query_features.shape[1]
   assert memory_features.shape[0] == memory_labels.shape[0] and  query_features.shape[0] == query_labels.shape[0]
 
-  cos_distances = pairwise_distances(memory_features, query_features, metric=metric)
+  distances = pairwise_distances(memory_features, query_features, metric=metric)
   # get indices of n maximum values in ndarray, reverse the list (highest is leftmost)
-  indices_closest = cos_distances.argsort()[:-n_closest_matches-1:-1] if n_closest_matches > 0 else cos_distances.argsort()
+  indices_closest = distances.argsort(axis=0)[:n_closest_matches,] if n_closest_matches > 0 else distances.argsort(axis=0)
 
-  retrieved_labels_dict= dict([(i, query_labels[indices_closest[:, i]]) for i in range(query_labels.shape[0])])
+  retrieved_labels_dict= dict([(i, memory_labels[indices_closest[:, i]]) for i in range(query_labels.shape[0])])
 
 
   df = pd.DataFrame.from_dict(retrieved_labels_dict, orient='index')

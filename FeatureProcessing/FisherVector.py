@@ -62,7 +62,7 @@ class FisherVectorGMM:
     :param verbose - boolean that controls the verbosity
     :return: fitted Fisher vector object
     """
-    n_kernel_choices = [20, 40, 60, 100, 150]
+    n_kernel_choices = [20, 60, 100]
     bic_scores = []
     for n_kernels in n_kernel_choices:
       self.n_kernels = n_kernels

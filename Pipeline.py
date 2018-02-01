@@ -1,9 +1,11 @@
 from FeatureExtractor import SIFTFeatures, VGGFeatures, ResNetFeatures, SURFFeatures
 from DatasetProvider import TwentyBNDataset
 from FeatureProcessing import FisherVectorGMM
+from Evaluation import nearestNeighborMatching, precision_at_k, mean_average_precision
 import pandas as pd
 import numpy as np
 import os, pickle
+from sklearn.model_selection import KFold
 
 ModelDumpsDir = './DataDumps/Models'
 FeatureDumpsDir = './DataDumps/Features'
@@ -109,13 +111,18 @@ def loadFisherVectorGMM(pickle_path):
 def computeFisherVectors(features, labels, fv_gmm, normalized=True, pickle_path=None):
   """
   :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
+  :param labels: labels correspodning to features - array of shape (n_videos,)
   :param fv_gmm: fitted FisherVectorGMM instance
   :param normalized: boolean - if true: improved fisher vectors are computed
-  :return: fisher vectors - ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
+  :return: (fv, labels) fisher vectors - ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
   """
   assert isinstance(fv_gmm, FisherVectorGMM)
   assert isinstance(features, np.ndarray)
   assert features.ndim == 4
+
+  labels = np.asarray(labels)
+  assert labels.ndim ==1
+  assert features.shape == labels.shape[0]
 
   if not pickle_path:
     pickle_path = os.path.join(FeatureDumpsDir, "gmm_fisher_vectors" + ".pickle" )
@@ -126,7 +133,8 @@ def computeFisherVectors(features, labels, fv_gmm, normalized=True, pickle_path=
   print('Dumped feature dataframe to', pickle_path)
   df.to_pickle(pickle_path)
 
-  return df
+  assert fv.shape[0] == labels.shape[0]
+  return fv, labels
 
 
 
@@ -135,32 +143,74 @@ def loadFisherVectors(fisher_vector_path):
   loads fisher vectors from pd dataframe and returns them as a matrix
   :param feature_df: pandas dataframe which holds features in a column 'features'
   :param feature_df_path: path to pandas dataframe that holds features
-  :return: (features, labels) - features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (list) of videos
+  :return: (fv, labels) - fv as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (as array) of videos
   '''
   assert fisher_vector_path is not None
   assert os.path.isfile(fisher_vector_path)
 
   fisher_vectors_df = pd.read_pickle(fisher_vector_path)
-  return fisher_vectors_df
+  assert 'labels' in fisher_vectors_df and 'features' in fisher_vectors_df
 
-  #
-  # assert 'features' in feature_df and 'labels' in feature_df
-  #
-  # # stack video features to a 2d matrix
-  # features = np.concatenate(feature_df['features'], axis=0)
-  #
-  # labels = list(feature_df['labels'])
-  #
-  # if features.ndim == 3:  # assume only one feature vector is given -> insert dimension
-  #   features = features.reshape((features.shape[0], features.shape[1], 1, features.shape[2]))
-  #
-  # assert features.ndim == 4 and len(labels) == features.shape[0]
-  # return features, labels
+  fv = np.concatenate(fisher_vectors_df['features'], axis=0)
+  labels = np.asarray(fisher_vectors_df['labels'])
+
+  return fv, labels
+
+
+def evaluateMatching(feature_vectors, labels, n_splits=5, distance_metrics=['cosine', 'euclidean', 'mahalanobis']):
+  '''
+  evaluates the matching performance by computing the mean average precision and precision at k
+  -> the evaluation measures are computed on n splits and then averaged over the splits
+  -> the evaluation is also performed for different distance_metrics
+  :param feature_vectors: features as ndarray of shape (n_videos, n_feature_dim)
+  :param labels: labels as ndarray of shape (n_videos,)
+  :param n_splits: number of splits for dividing the feature vectors into a memory and query set
+  :param distance_metrics: list of distance metrics to use for the matching e.g. 'cosine', 'euclidean', 'mahalanobis'
+  :return: result dictionary which holds the evaluation results - it has the following shape
+
+    {'cosine': {'mAP': 0.5238396745484852, 'precision_at_1': 0.5, 'precision_at_3': 0.5, 'precision_at_5': 0.516, 'precision_at_10': 0.5039999999999999}}
+
+  '''
+  labels = np.asarray(labels)
+  assert labels.ndim == 1 and feature_vectors.ndim > 1
+  assert feature_vectors.shape[0] == labels.shape[0]
+
+  kf = KFold(n_splits=n_splits, shuffle=True)
+
+  eval_measures = ['mAP', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
+  inner_result_dict = dict([(eval_measure, []) for eval_measure in eval_measures])
+  result_dict = dict([(distance_metric, inner_result_dict) for distance_metric in distance_metrics])
+
+  for memory_index, query_index in kf.split(labels):
+    memory_features = feature_vectors[memory_index]
+    query_features = feature_vectors[query_index]
+    memory_labels = labels[memory_index]
+    query_labels = labels[query_index]
+
+    for metric in distance_metrics:
+      matches_df = nearestNeighborMatching(memory_features, memory_labels, query_features, query_labels, metric=metric)
+      result_dict[metric]['mAP'].append(mean_average_precision(matches_df))
+      result_dict[metric]['precision_at_1'].append(precision_at_k(matches_df, k=1))
+      result_dict[metric]['precision_at_3'].append(precision_at_k(matches_df, k=3))
+      result_dict[metric]['precision_at_5'].append(precision_at_k(matches_df, k=5))
+      result_dict[metric]['precision_at_10'].append(precision_at_k(matches_df, k=10))
+
+  # Take the mean of the results over the folds
+  for metric in distance_metrics:
+    for eval_measure in eval_measures:
+      result_dict[metric][eval_measure] = np.mean(result_dict[metric][eval_measure])
+
+  return result_dict
 
 
 def main():
-  for extractor in ['resnet']:
-    extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=2)
+  #for extractor in ['resnet']:
+  #  extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=2)
+
+  features = np.random.normal(size=(2000, 300))
+  labels = list(np.random.randint(1, 3, size=(2000)))
+
+  evaluateMatching(features, labels)
 
 
   #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')

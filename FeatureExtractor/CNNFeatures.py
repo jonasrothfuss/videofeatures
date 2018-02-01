@@ -74,7 +74,6 @@ class VGGFeatures(CNNFeatures):
 class ResNetFeatures(CNNFeatures):
   def __init__(self):
     self.base_model = resnet50.ResNet50()
-    print(self.base_model.summary())
     self.model = Model(inputs=self.base_model.input, outputs=self.base_model.get_layer('avg_pool').output)
 
   def computeFeatures(self, video):

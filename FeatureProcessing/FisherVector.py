@@ -48,7 +48,7 @@ class FisherVectorGMM:
 
     if model_dump_path:
       with open(model_dump_path, 'wb') as f:
-        pickle.dump(self,f)
+        pickle.dump(self,f, protocol=4)
       if verbose:
         print('Dumped fitted model to', model_dump_path)
 

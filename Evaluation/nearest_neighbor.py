@@ -45,6 +45,5 @@ def nearestNeighborMatching(memory_features, memory_labels, query_features, quer
   df["true_class"] = query_labels
 
   assert df.shape[0] == query_labels.shape[0] and (df.shape[1] == memory_labels.shape[0] + 1 or df.shape[1] == n_closest_matches + 1)
-  print(df)
   return df
 

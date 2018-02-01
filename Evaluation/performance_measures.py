@@ -36,6 +36,7 @@ def mean_average_precision(df_nearest_neighbor, n_relevant_documents=-1):
 
   return np.mean((np.sum(np.multiply(P, matches), axis=1) / np.sum(matches, axis=1)))
 
+
 def precision_at_k(df_nearest_neighbor, k):
   """
     :param df_nearest_neighbor: dataframe containing the closest matches/neighbors

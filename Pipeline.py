@@ -129,6 +129,7 @@ def computeFisherVectors(features, labels, fv_gmm, normalized=True, fv_dump_path
   if not fv_dump_path:
     fv_dump_path = os.path.join(FeatureDumpsDir, "gmm_fisher_vectors" + ".pickle")
 
+
   fv = fv_gmm.predict(features, normalized=normalized)
 
   df = pd.DataFrame(data={'labels': labels, 'features': np.vsplit(fv, features.shape[0])})
@@ -230,7 +231,7 @@ def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, dataset='
 
   overall_result_dict = {}
 
-  for extractor in EXTRACTOR_TYPES:
+  for extractor in ['resnet']:
 
     ''' 1. Extract / Load Features '''
     if extractFeat:
@@ -268,45 +269,58 @@ def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, dataset='
 
     ''' 4. Evaluate Matching '''
     n_splits = 5
-    distance_metrics = ['cosine', 'euclidean']
+    distance_metrics = ['cosine', 'euclidean', 'hamming']
 
     logger.info('Starting to evaluate matching results (n_splits={}, distance_metrics={})'.format(n_splits, distance_metrics))
-    matching_result_dict = evaluateMatching(fv, labels, n_splits=5, distance_metrics=['cosine', 'euclidean'])
+    matching_result_dict = evaluateMatching(fv, labels, n_splits=5, distance_metrics=distance_metrics)
 
     logger.info('Finished matching evaluation of {} features from {} dataset - Results: \n{}'.format(extractor, dataset, matching_result_dict))
 
     overall_result_dict[extractor] = matching_result_dict
 
+  # Store final results as pandas df
+  result_df = overall_result_dict_to_df(overall_result_dict)
+  result_df.to_pickle(getDumpFileName('', dataset, 'results'))
+
+  logger.info('Dumped results datafram to {}'.format(getDumpFileName('', dataset, 'results')))
+
+
 def getDumpFileName(extractor, dataset, type):
-  assert type in ['features', 'model', 'fisher_vectors']
+  assert type in ['features', 'model', 'fisher_vectors', 'results']
   if type is 'features':
     return os.path.join(FeatureDumpsDir, 'features_' + extractor + '_' + dataset + '.pickle')
   elif type is 'model':
     return os.path.join(ModelDumpsDir, 'model_' + extractor + '_' + dataset + '.pickle')
   elif type is 'fisher_vectors':
     return os.path.join(FisherVectorDumpsDir, 'fv_' + extractor + '_' + dataset + '.pickle')
+  elif type is 'results':
+    return os.path.join(ResultsDir, 'results_{}.pickle'.format(dataset))
 
 def overall_result_dict_to_df(result_dict):
- pass
+  df_columns = ['extractor', 'distance_measure', 'mAP', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
+  df_rows = []
+  i = 1
+  for dataset, inner_dict in result_dict.items():
+    for distance_measure, results in inner_dict.items():
+      row = [dataset, distance_measure]
+      for result in results.values():
+        row.append(result)
+      df_rows.append((i,row))
+      i += 1
+
+  df = pd.DataFrame.from_dict(dict(df_rows), orient='index')
+  df.columns = df_columns
+  return df
+
+
+
+  #print(df)
 
 def main():
-  #for extractor in ['resnet']:
-  #  extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=2)
+  # for extractor in ['resnet']:
+  #   extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=20)
 
-  runEntirePipeline(extractFeat=True)
-
-  # features = np.random.normal(size=(2000, 300))
-  # labels = list(np.random.randint(1, 3, size=(2000)))
-  #
-  # evaluateMatching(features, labels)
-
-  result_dict = {'20bn_val' : {'cosine': {'mAP': 0.07876077283840946, 'precision_at_1': 0.04166666666666667, 'precision_at_3': 0.02777777777777778,
-              'precision_at_5': 0.026666666666666665, 'precision_at_10': 0.03583333333333333},
-   'euclidean': {'mAP': 0.07876077283840946, 'precision_at_1': 0.04166666666666667,
-                 'precision_at_3': 0.02777777777777778, 'precision_at_5': 0.026666666666666665,
-                 'precision_at_10': 0.03583333333333333}}}
-
-  overall_result_dict_to_df(result_dict)
+  runEntirePipeline(extractFeat=False)
 
 
 

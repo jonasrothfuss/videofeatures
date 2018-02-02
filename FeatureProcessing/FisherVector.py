@@ -97,30 +97,11 @@ class FisherVectorGMM:
     X = X.reshape((-1, X.shape[-2], X.shape[-1])) #(n_images, n_features, n_feature_dim)
     X_matrix = X.reshape(-1, X.shape[-1])
 
-    #likelihood ratio
-    #gaussians = [multivariate_normal(mean=self.means[k], cov=self.covars[k]) for k in range(self.n_kernels)]
-    #likelihood = np.vstack([multivariate_normal.pdf(X_matrix / 10**7, mean=self.means[k] / 10**7, cov=self.covars[k]/10**7) for k in range(self.n_kernels)]).T
-
-    gaussians = []
-    for k in range(self.n_kernels):
-      g = GaussianMixture(n_components=1, covariance_type='diag')
-      g._fitted = True
-      g.means_ = self.means[k].reshape((1,-1))
-      g.weights_ = np.asarray([1.])
-      g.covariances_ = np.diag(self.covars[k]).reshape((1,-1))
-
-      g.precisions_ = np.ones(g.covariances_.shape) / g.covariances_ # inverse of diagonal cov matrix is 1/cov of diagonals
-      g.precisions_cholesky_ = np.sqrt(g.precisions_) # since in the diagonal case the diag elements are squared for cholesky, we can get it by square rooting
-
-      gaussians.append(g)
-
-
-    likelihood = np.vstack([g.predict_proba(X_matrix) for g in gaussians]).T
-    likelihood_ratio = likelihood / likelihood.sum(axis=-1)[:, None]
-    likelihood_ratio = likelihood_ratio.reshape(X.shape[0], X.shape[1], self.n_kernels) #(n_images, n_features, n_kernels)
+    # set equal weights to predict likelihood ratio
+    self.gmm.weights_ = np.ones(self.n_kernels) / self.n_kernels
+    likelihood_ratio = self.gmm.predict_proba(X_matrix).reshape(X.shape[0], X.shape[1], self.n_kernels)
 
     var = np.diagonal(self.covars, axis1=1, axis2=2)
-
 
     norm_dev_from_modes = ((X[:,:, None, :] - self.means[None, None, :, :])/ var[None, None, :, :]) # (n_images, n_features, n_kernels, n_featur_dim)
 
@@ -138,9 +119,12 @@ class FisherVectorGMM:
     assert fisher_vectors.ndim == 3
     fisher_vectors = fisher_vectors.reshape((n_videos, n_frames, fisher_vectors.shape[1], fisher_vectors.shape[2]))
 
+
     if normalized:
       fisher_vectors = np.sqrt(np.abs(fisher_vectors)) * np.sign(fisher_vectors) # power normalization
-      fisher_vectors = fisher_vectors / np.linalg.norm(fisher_vectors, axis=3)[:,:,:,None]
+      fisher_vectors = fisher_vectors / np.linalg.norm(fisher_vectors, axis=(2,3))[:,:,None,None]
+
+    fisher_vectors[fisher_vectors < 10**-4] = 0
 
     assert fisher_vectors.ndim == 4
     return fisher_vectors

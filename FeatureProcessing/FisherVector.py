@@ -29,7 +29,7 @@ class FisherVectorGMM:
     X = X.reshape(-1, X.shape[-1])
 
     # fit GMM and store params of fitted model
-    self.gmm = gmm = GaussianMixture(n_components=self.n_kernels, covariance_type=self.covariance_type).fit(X)
+    self.gmm = gmm = GaussianMixture(n_components=self.n_kernels, covariance_type=self.covariance_type, max_iter=1000).fit(X)
     self.covars = gmm.covariances_
     self.means = gmm.means_
     self.weights = gmm.weights_

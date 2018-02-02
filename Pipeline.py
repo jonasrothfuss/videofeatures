@@ -7,8 +7,10 @@ import numpy as np
 import os, pickle
 from sklearn.model_selection import KFold
 import logging
+import gc
 
-ModelDumpsDir = './DataDumps/Models'
+
+ModelDumpsDir = '/common/homes/students/rothfuss/Documents/video_retrieval_baselines2/DataDumps/Models' #'./DataDumps/Models'
 FeatureDumpsDir = './DataDumps/Features'
 FisherVectorDumpsDir = './DataDumps/FisherVectors'
 LogDir = './DataDumps/Logs'
@@ -17,6 +19,38 @@ ResultsDir = './DataDumps/Results'
 EXTRACTOR_TYPES = ['resnet', 'vgg_fc1', 'vgg_fc2', 'surf', 'sift']
 EXTERNALLY_EXTRACTED_FEATURES = ['stip']
 DATASETS = ['20bn_val', '20bn_train', 'armar_val', 'armar_train']
+
+
+def getDumpFileName(extractor, dataset, type):
+  assert type in ['features', 'model', 'fv_npy', 'results']
+  if type is 'features':
+    return os.path.join(FeatureDumpsDir, 'features_' + extractor + '_' + dataset + '.pickle')
+  elif type is 'model':
+    return os.path.join(ModelDumpsDir, 'gmm_' + extractor + '_' + dataset + '.pickle')
+  elif type is 'fv_npy':
+    return os.path.join(FisherVectorDumpsDir, 'fv_' + extractor + '_' + dataset)
+  elif type is 'results':
+    return os.path.join(ResultsDir, 'results_{}.pickle'.format(dataset))
+
+def overall_result_dict_to_df(result_dict):
+  df_columns = ['extractor', 'distance_measure', 'mAP', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
+  df_rows = []
+  i = 1
+  for dataset, inner_dict in result_dict.items():
+    for distance_measure, results in inner_dict.items():
+      row = [dataset, distance_measure]
+      for result in results.values():
+        row.append(result)
+      df_rows.append((i,row))
+      i += 1
+
+  df = pd.DataFrame.from_dict(dict(df_rows), orient='index')
+  df.columns = df_columns
+  return df
+
+
+
+  #print(df)
 
 def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, feature_dump_path=None):
   """
@@ -110,12 +144,14 @@ def loadFisherVectorGMM(pickle_path):
   return fv_gmm
 
 
-def computeFisherVectors(features, labels, fv_gmm, normalized=True, fv_dump_path=None):
+def computeFisherVectors(features, labels, fv_gmm, normalized=True, dump_path=None, batch_size=100):
   """
   :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
   :param labels: labels correspodning to features - array of shape (n_videos,)
   :param fv_gmm: fitted FisherVectorGMM instance
   :param normalized: boolean - if true: improved fisher vectors are computed
+  :param fv_dump_path: file path specifying the dump location for the computed vectors
+  :param batch_size: batch size for computing the fisher vactors
   :return: (fv, labels) fisher vectors - ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
   """
   assert isinstance(fv_gmm, FisherVectorGMM)
@@ -126,15 +162,31 @@ def computeFisherVectors(features, labels, fv_gmm, normalized=True, fv_dump_path
   assert labels.ndim ==1
   assert features.shape[0] == labels.shape[0]
 
-  if not fv_dump_path:
-    fv_dump_path = os.path.join(FeatureDumpsDir, "gmm_fisher_vectors" + ".pickle")
 
+  if dump_path: # compute Fisher vectors in batches and store as memory map
+    n_instances = features.shape[0]
+    n_batches = n_instances // batch_size
+    split_tuples = list(zip([i * batch_size for i in range(0, n_batches + 1)], [i*batch_size for i in range(1,n_batches+1)] + [n_instances]))
 
-  fv = fv_gmm.predict(features, normalized=normalized)
+    fv_shape = (features.shape[0], features.shape[1], fv_gmm.n_kernels*2, features.shape[3])
+    fv = np.memmap(dump_path + '_memmap.npy', dtype='float32', mode='w+', shape=fv_shape)
 
-  df = pd.DataFrame(data={'labels': labels, 'features': np.vsplit(fv, features.shape[0])})
-  print('Dumped feature dataframe to', fv_dump_path)
-  df.to_pickle(fv_dump_path)
+    for i, (batch_start, batch_end) in enumerate(split_tuples):
+      batch = features[batch_start:batch_end]
+      if batch.shape[0] > 0:
+        print('Compute FV batch {} of {}'.format(i+1, n_batches+1))
+        fv[batch_start:batch_end] = fv_gmm.predict(batch, normalized=normalized)
+        # clean memory
+        del batch
+        gc.collect()
+
+    np.save(dump_path + '.npy', fv)
+    np.save(dump_path + '_labels.npy', labels)
+    print('Saved fisher vectors to ', dump_path)
+    del fv
+
+  else:
+    fv = fv_gmm.predict(features, normalized=normalized)
 
   assert fv.shape[0] == labels.shape[0]
   return fv, labels
@@ -147,19 +199,17 @@ def loadFisherVectors(fisher_vector_path):
   :param feature_df_path: path to pandas dataframe that holds features
   :return: (fv, labels) - fv as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (as array) of videos
   '''
-  assert fisher_vector_path is not None
-  assert os.path.isfile(fisher_vector_path)
+  assert os.path.isfile(fisher_vector_path + '_labels.npy')
+  assert os.path.isfile(fisher_vector_path + '.npy')
 
-  fisher_vectors_df = pd.read_pickle(fisher_vector_path)
-  assert 'labels' in fisher_vectors_df and 'features' in fisher_vectors_df
-
-  fv = np.concatenate(fisher_vectors_df['features'], axis=0)
-  labels = np.asarray(fisher_vectors_df['labels'])
+  fv = np.load(fisher_vector_path + '.npy', mmap_mode='r')
+  labels = np.load(fisher_vector_path + '_labels.npy')
+  print('Loaded Fisher Vectors from {} with shape {}'.format(fisher_vector_path + '.npy', fv.shape))
 
   return fv, labels
 
 
-def evaluateMatching(feature_vectors, labels, n_splits=5, distance_metrics=['cosine', 'euclidean', 'mahalanobis']):
+def evaluateMatching(feature_vectors, labels, n_splits=5, distance_metrics=['cosine', 'euclidean', 'hamming']):
   '''
   evaluates the matching performance by computing the mean average precision and precision at k
   -> the evaluation measures are computed on n splits and then averaged over the splits
@@ -220,63 +270,66 @@ def setup_logger(logfile_name = 'piplineRuns.log'):
 
   return logger
 
-def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, dataset='20bn_val'):
+def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, evaluation=True, dataset='20bn_val', by_bic=False, n_frames=5):
   assert dataset in DATASETS, 'Dataset must be one of the following: ' + str(DATASETS)
 
   #set up logging
   logger = setup_logger(logfile_name = 'piplineRuns.log')
 
   logger.info('----- START PIPELINE RUN -----')
-  logger.info('CONFIGS: [extractFeat: {}, trainGMM: {}, computeFV: {}, dataset: {}]'.format(extractFeat, trainGMM, computeFV, dataset))
+  logger.info('CONFIGS: [extractFeat: {}, trainGMM: {}, computeFV: {}, dataset: {}, by_bic: {}]'.format(extractFeat, trainGMM, computeFV, dataset, by_bic))
 
   overall_result_dict = {}
 
-  for extractor in ['resnet']:
-
-    ''' 1. Extract / Load Features '''
-    if extractFeat:
-      logger.info('Started extracting {} features from {} dataset'.format(extractor, dataset))
-      features, labels = extractFeatures(extractor_type=extractor, dataset=dataset,
-                                         feature_dump_path=getDumpFileName(extractor, dataset, 'features'))
-      logger.info('Finished extracting {} features from {} dataset. Dumped features to {}'.format(extractor, dataset, getDumpFileName(extractor, dataset, 'features')))
-
-    else: # load features
-      features, labels = loadFeatures(getDumpFileName(extractor, dataset, 'features'))
-      logger.info('Loaded {} features from {}'.format(extractor, getDumpFileName(extractor, dataset, 'features')))
-
-
-    ''' 2. Train / Load Fisher Vector GMM '''
-    if trainGMM:
-      logger.info('Started training FisherVector GMM')
-      fv_gmm = trainFisherVectorGMM(features, by_bic=False, model_dump_path=getDumpFileName(extractor, dataset, 'model'))
-      logger.info('Finished training FisherVector GMM. Dumped model to {}'.format(getDumpFileName(extractor, dataset, 'model')))
-
-    else: #load model
-      fv_gmm = loadFisherVectorGMM(getDumpFileName(extractor, dataset, 'model'))
-      logger.info('Loaded FisherVector GMM from {}'.format(getDumpFileName(extractor, dataset, 'model')))
-
-
-    ''' 3. Compute / Load Fisher Vectors '''
+  for extractor in EXTRACTOR_TYPES + EXTERNALLY_EXTRACTED_FEATURES:
     if computeFV:
+      ''' 1. Extract / Load Features '''
+      if extractFeat:
+        logger.info('Started extracting {} features from {} dataset'.format(extractor, dataset))
+        features, labels = extractFeatures(extractor_type=extractor, dataset=dataset,
+                                           feature_dump_path=getDumpFileName(extractor, dataset, 'features'))
+        logger.info('Finished extracting {} features from {} dataset. Features have shape {}.'
+                    ' Dumped features to {}'.format(extractor, dataset, features.shape, getDumpFileName(extractor, dataset, 'features')))
+
+      else: # load features
+        features, labels = loadFeatures(getDumpFileName(extractor, dataset, 'features'))
+        logger.info('Loaded {} features from {}.  Features have shape {}'.format(extractor, getDumpFileName(extractor, dataset, 'features'), features.shape))
+
+
+      ''' 2. Train / Load Fisher Vector GMM '''
+      if trainGMM:
+        logger.info('Started training FisherVector GMM')
+        fv_gmm = trainFisherVectorGMM(features, by_bic=by_bic, model_dump_path=getDumpFileName(extractor, dataset, 'model'))
+        logger.info('Finished training FisherVector GMM. Dumped model to {}'.format(getDumpFileName(extractor, dataset, 'model')))
+
+      else: #load model
+        fv_gmm = loadFisherVectorGMM(getDumpFileName(extractor, dataset, 'model'))
+        logger.info('Loaded FisherVector GMM from {}'.format(getDumpFileName(extractor, dataset, 'model')))
+
+
+
+      features = features[:, [0,4,9,14,19], :, :]
+
+      ''' 3. Compute / Load Fisher Vectors '''
       logger.info('Started Computing Fisher Vectors')
-      fv, labels = computeFisherVectors(features, labels, fv_gmm, normalized=True,
-                                fv_dump_path=getDumpFileName(extractor, dataset, 'fisher_vectors'))
+      fv, labels = computeFisherVectors(features, labels, fv_gmm, normalized=True, dump_path=getDumpFileName(extractor, dataset, 'fv_npy'))
       logger.info('Finished computing Fisher Vectors. Dumped vectors to {}'.format(getDumpFileName(extractor, dataset, 'fisher_vectors')))
 
     else:
-      fv, labels = loadFisherVectors(getDumpFileName(extractor, dataset, 'fisher_vectors'))
-      logger.info('Loaded Fisher Vectors from {}'.format(getDumpFileName(extractor, dataset, 'fisher_vectors')))
+      fv, labels = loadFisherVectors(getDumpFileName(extractor, dataset, 'fv_npy'))
+      logger.info('Loaded Fisher Vectors from {}'.format(getDumpFileName(extractor, dataset, 'fv_npy')))
 
     ''' 4. Evaluate Matching '''
-    n_splits = 5
-    distance_metrics = ['cosine', 'euclidean', 'hamming']
+    if evaluation:
+      n_splits = 5
+      distance_metrics = ['cosine', 'euclidean']
 
-    logger.info('Starting to evaluate matching results (n_splits={}, distance_metrics={})'.format(n_splits, distance_metrics))
-    matching_result_dict = evaluateMatching(fv, labels, n_splits=5, distance_metrics=distance_metrics)
+      logger.info('Starting to evaluate matching results (n_splits={}, distance_metrics={})'.format(n_splits, distance_metrics))
+      matching_result_dict = evaluateMatching(fv, labels, n_splits=5, distance_metrics=distance_metrics)
 
-    logger.info('Finished matching evaluation of {} features from {} dataset - Results: \n{}'.format(extractor, dataset, matching_result_dict))
+      logger.info('Finished matching evaluation of {} features from {} dataset - Results: \n{}'.format(extractor, dataset, matching_result_dict))
 
-    overall_result_dict[extractor] = matching_result_dict
+      overall_result_dict[extractor] = matching_result_dict
 
   # Store final results as pandas df
   result_df = overall_result_dict_to_df(overall_result_dict)
@@ -285,43 +338,20 @@ def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, dataset='
   logger.info('Dumped results datafram to {}'.format(getDumpFileName('', dataset, 'results')))
 
 
-def getDumpFileName(extractor, dataset, type):
-  assert type in ['features', 'model', 'fisher_vectors', 'results']
-  if type is 'features':
-    return os.path.join(FeatureDumpsDir, 'features_' + extractor + '_' + dataset + '.pickle')
-  elif type is 'model':
-    return os.path.join(ModelDumpsDir, 'model_' + extractor + '_' + dataset + '.pickle')
-  elif type is 'fisher_vectors':
-    return os.path.join(FisherVectorDumpsDir, 'fv_' + extractor + '_' + dataset + '.pickle')
-  elif type is 'results':
-    return os.path.join(ResultsDir, 'results_{}.pickle'.format(dataset))
-
-def overall_result_dict_to_df(result_dict):
-  df_columns = ['extractor', 'distance_measure', 'mAP', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
-  df_rows = []
-  i = 1
-  for dataset, inner_dict in result_dict.items():
-    for distance_measure, results in inner_dict.items():
-      row = [dataset, distance_measure]
-      for result in results.values():
-        row.append(result)
-      df_rows.append((i,row))
-      i += 1
-
-  df = pd.DataFrame.from_dict(dict(df_rows), orient='index')
-  df.columns = df_columns
-  return df
-
-
-
-  #print(df)
 
 def main():
   # for extractor in ['resnet']:
   #   extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=20)
 
-  runEntirePipeline(extractFeat=False)
+  runEntirePipeline(extractFeat=False, trainGMM=False, computeFV=True, evaluation=False)
 
+
+
+  # features = np.random.normal(size=(1840, 20, 1, 80))
+  # labels = np.random.randint(1,10, size=(1840))
+  #
+  # fv_gmm = trainFisherVectorGMM(features, by_bic=False)
+  # fv = computeFisherVectors(features, labels, fv_gmm)
 
 
   #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')

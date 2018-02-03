@@ -6,13 +6,17 @@ import collections
 import pandas as pd
 from sklearn import decomposition
 
-def nearestNeighborMatching(memory_features, memory_labels, query_features, query_labels, n_closest_matches=-1, metric='cosine'):
+def nearestNeighborMatching(features, labels, memory_index, query_index, n_partitions=5, n_closest_matches=-1, metric='cosine'):
+
+  # TODO: update doku
+
   '''
   finds the closest vector matches (cos_similarity) for queries in the memory
-  :param memory_features: memory feature vectors - ndarray of shape (memory_size, n_feature_dim)
-  :param memory_labels: labels corresponding to the feature vectors in the memory - ndarray of shape (memory_size,)
-  :param query_features: query feature vectors - ndarray of shape (query_size, n_feature_dim)
-  :param query_labels: labels corresponding to the feature vectors in the query - ndarray of shape (query_size,)
+  :param features: ndarray or memmap to feature vectors
+  :param labels: ndarray with labels -> shape (n_instances, )
+  :param memory_index: list with indices for selecting the memory instances
+  :param query_index: list with indices for selecting the query instances
+  :param n_partitions: number of partitions for computing the distances in smaller chunks
   :param n_closest_matches: number of neighbors to be considered - default: -1 : consider all vectors in the memory
   :param metric: distance metric to use e.g. 'cosine', 'euclidean', 'mahalanobis'
   :return: dataframe of shape (query_size, memory_size + 1) containing the labels of matched vectors
@@ -27,16 +31,37 @@ def nearestNeighborMatching(memory_features, memory_labels, query_features, quer
 
 
   ''' Preconditions and Preprocessing '''
-  assert isinstance(memory_labels, list) or memory_labels.ndim == 1
-  assert isinstance(query_labels, list) or query_labels.ndim == 1
-  memory_labels, query_labels = np.asarray(memory_labels),  np.asarray(query_labels)
+  assert not bool(set(memory_index) & set(query_index)), 'memory_index and query_index must be disjoint'
+  memory_labels = np.asarray(labels)[memory_index]
+  query_labels = np.asarray(labels)[query_index]
 
-  memory_features = memory_features.reshape((memory_features.shape[0], -1))
-  query_features = query_features.reshape((query_features.shape[0], -1))
-  assert memory_features.shape[1] == query_features.shape[1]
-  assert memory_features.shape[0] == memory_labels.shape[0] and  query_features.shape[0] == query_labels.shape[0]
+  distances = np.empty(shape=(memory_labels.shape[0], query_labels.shape[0]))
 
-  distances = pairwise_distances(memory_features, query_features, metric=metric)
+  ''' Partition memory and query features for distance computation'''
+
+  memory_index_chunks = np.array_split(memory_index, n_partitions)
+  query_index_chunks = np.array_split(query_index, n_partitions)
+
+  i = 0
+  for part, memory_index_chunk in enumerate(memory_index_chunks):
+    j = 0
+    new_i =  i + len(memory_index_chunk)
+    for query_index_chunk in query_index_chunks:
+      memory_features_chunk = features[memory_index_chunk].reshape((len(memory_index_chunk), -1))
+      query_features_chunk = features[query_index_chunk].reshape((len(query_index_chunk), -1))
+
+      distances_chunk = pairwise_distances(memory_features_chunk, query_features_chunk, metric=metric)
+      new_j = j + len(query_index_chunk)
+      distances[i:new_i, j:new_j] = distances_chunk
+      j = new_j
+
+    assert j == distances.shape[1]
+    i = new_i
+    print("Computed distance partition {} of {}".format(part + 1, n_partitions))
+
+  assert i == distances.shape[0]
+
+
   # get indices of n maximum values in ndarray, reverse the list (highest is leftmost)
   indices_closest = distances.argsort(axis=0)[:n_closest_matches,] if n_closest_matches > 0 else distances.argsort(axis=0)
 
@@ -44,7 +69,7 @@ def nearestNeighborMatching(memory_features, memory_labels, query_features, quer
 
 
   df = pd.DataFrame.from_dict(retrieved_labels_dict, orient='index')
-  df.columns = ['pred_class_{}'.format(i) for i in range(memory_features.shape[0])]
+  df.columns = ['pred_class_{}'.format(i) for i in range(len(memory_index))]
   df["true_class"] = query_labels
 
   assert df.shape[0] == query_labels.shape[0] and (df.shape[1] == memory_labels.shape[0] + 1 or df.shape[1] == n_closest_matches + 1)

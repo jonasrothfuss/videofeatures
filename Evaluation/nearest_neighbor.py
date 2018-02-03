@@ -7,9 +7,6 @@ import pandas as pd
 from sklearn import decomposition
 
 def nearestNeighborMatching(features, labels, memory_index, query_index, n_partitions=5, n_closest_matches=-1, metric='cosine'):
-
-  # TODO: update doku
-
   '''
   finds the closest vector matches (cos_similarity) for queries in the memory
   :param features: ndarray or memmap to feature vectors

@@ -7,11 +7,11 @@ import numpy as np
 import os, pickle
 from sklearn.model_selection import KFold
 import logging
-import gc
+import gc, copy
 import itertools
 
 
-ModelDumpsDir = '/common/homes/students/rothfuss/Documents/video_retrieval_baselines2/DataDumps/Models' #'./DataDumps/Models'
+ModelDumpsDir = './DataDumps/Models' #'./DataDumps/Models'
 FeatureDumpsDir = './DataDumps/Features'
 FisherVectorDumpsDir = './DataDumps/FisherVectors'
 LogDir = './DataDumps/Logs'
@@ -185,6 +185,7 @@ def computeFisherVectors(features, labels, fv_gmm, normalized=True, dump_path=No
     np.save(dump_path + '_labels.npy', labels)
     print('Saved fisher vectors to ', dump_path)
     del fv
+    return np.load(dump_path + '.npy', mmap_mode='r'), labels
 
   else:
     fv = fv_gmm.predict(features, normalized=normalized)
@@ -198,7 +199,7 @@ def loadFisherVectors(fisher_vector_path):
   loads fisher vectors from pd dataframe and returns them as a matrix
   :param feature_df: pandas dataframe which holds features in a column 'features'
   :param feature_df_path: path to pandas dataframe that holds features
-  :return: (fv, labels) - fv as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (as array) of videos
+  :return: (fv, labels) - fv as ndarray of shape (n_videos, n_frames, 2*n_kernels, n_dim_descriptor) and labels (as array) of videos
   '''
   assert os.path.isfile(fisher_vector_path + '_labels.npy')
   assert os.path.isfile(fisher_vector_path + '.npy')
@@ -210,7 +211,7 @@ def loadFisherVectors(fisher_vector_path):
   return fv, labels
 
 
-def evaluateMatching(feature_vectors, labels, n_splits=5, n_split_chunks=5, distance_metrics=['cosine', 'euclidean', 'hamming']):
+def evaluateMatching(feature_vectors, labels, n_splits=5, n_partitions=5, distance_metrics=['cosine', 'euclidean', 'hamming']):
   '''
   evaluates the matching performance by computing the mean average precision and precision at k
   -> the evaluation measures are computed on n splits and then averaged over the splits
@@ -218,6 +219,7 @@ def evaluateMatching(feature_vectors, labels, n_splits=5, n_split_chunks=5, dist
   :param feature_vectors: features as ndarray of shape (n_videos, n_feature_dim)
   :param labels: labels as ndarray of shape (n_videos,)
   :param n_splits: number of splits for dividing the feature vectors into a memory and query set
+  :param n_partitions: number of partitions for computing the distances in smaller chunks
   :param distance_metrics: list of distance metrics to use for the matching e.g. 'cosine', 'euclidean', 'mahalanobis'
   :return: result dictionary which holds the evaluation results - it has the following shape
 
@@ -232,43 +234,19 @@ def evaluateMatching(feature_vectors, labels, n_splits=5, n_split_chunks=5, dist
 
   eval_measures = ['mAP', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
   inner_result_dict = dict([(eval_measure, []) for eval_measure in eval_measures])
-  result_dict = dict([(distance_metric, inner_result_dict) for distance_metric in distance_metrics])
+  result_dict = dict([(distance_metric, copy.deepcopy(inner_result_dict)) for distance_metric in distance_metrics])
 
-  for memory_indices, query_indices in kf.split(labels):
-
-    memory_indices_chunks = np.array_split(memory_indices, n_split_chunks)
-    query_indices_chunks = np.array_split(query_indices, n_split_chunks)
-    rows_chunk_list = []
-
-    columns_chunk_list = []
-
+  for memory_index, query_index in kf.split(labels):
     """ loop over different metrics """
     for metric in distance_metrics:
-      """ for every metric, chunk the data due to memory issues """
-      for query_indices_chunk in query_indices_chunks:
-        for memory_indices_chunk in memory_indices_chunks:
-          memory_features = feature_vectors[memory_indices_chunk]
-          query_features = feature_vectors[query_indices_chunk]
-          memory_labels = labels[memory_indices_chunk]
-          query_labels = labels[query_indices_chunk]
-
-          columns_chunk = nearestNeighborMatching(memory_features, memory_labels, query_features, query_labels, metric=metric)
-          columns_chunk_list.append(columns_chunk)
-
-        """ concatenate along columns """
-        rows_df = pd.concat(columns_chunk_list, axis=1)
-        rows_chunk_list.append(rows_df)
-
-      """ concatenate along rows """
-      matches_df = pd.concat(rows_chunk_list, axis=0)
-
+      matches_df = nearestNeighborMatching(feature_vectors, labels, memory_index, query_index, n_partitions=n_partitions,
+                                           metric=metric)
 
       result_dict[metric]['mAP'].append(mean_average_precision(matches_df))
       result_dict[metric]['precision_at_1'].append(precision_at_k(matches_df, k=1))
       result_dict[metric]['precision_at_3'].append(precision_at_k(matches_df, k=3))
       result_dict[metric]['precision_at_5'].append(precision_at_k(matches_df, k=5))
       result_dict[metric]['precision_at_10'].append(precision_at_k(matches_df, k=10))
-
 
   # Take the mean of the results over the folds
   for metric in distance_metrics:
@@ -366,7 +344,7 @@ def main():
   # for extractor in ['resnet']:
   #   extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=20)
 
-  runEntirePipeline(extractFeat=False, trainGMM=False, computeFV=True, evaluation=False)
+  runEntirePipeline(extractFeat=False, trainGMM=False, computeFV=False, evaluation=True)
 
 
 
@@ -374,8 +352,7 @@ def main():
   # labels = np.random.randint(1,10, size=(1840))
   #
   # fv_gmm = trainFisherVectorGMM(features, by_bic=False)
-  # fv = computeFisherVectors(features, labels, fv_gmm)
-
+  # fv, labels = computeFisherVectors(features, labels, fv_gmm, dump_path=getDumpFileName("dummy", "test", 'fv_npy'))
 
   #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')
   # features, labels = loadFeatures(feature_df_path='./DataDumps/Features/vgg_fc1_20bn_val')

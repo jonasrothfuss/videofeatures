@@ -46,14 +46,14 @@ if __name__ == '__main__':
   # set up logging
   logger = Pipeline.setup_logger(logfile_name='pipelineRuns.log')
 
-  try:
-    run_fisher_vector_gmm_model(path_to_fv="/PDFData/rothfuss/fisher_vector/fv_resnet_20bn_val", features_type="ResNet",
-                                model="FisherVectorGMM50Comp")
-  except Exception as e:
-    logger.error(traceback.format_exc())
+  #try:
+  #  run_fisher_vector_gmm_model(path_to_fv="/PDFData/rothfuss/fisher_vector/fv_resnet_20bn_val", features_type="ResNet",
+  #                              model="FisherVectorGMM50Comp")
+  #except Exception as e:
+  #  logger.error(traceback.format_exc())
 
   try:
-    run_eval_DEM_model("/PDFData/rothfuss/selected_trainings/8_20bn_gdl_optical_flow/valid_run/metadata_and_hidden_rep_df_08-09-17_17-00-24_valid.pickle")
+    run_eval_DEM_model("/Users/fabioferreira/metadata_and_hidden_rep_df_08-09-17_17-00-24_valid.pickle")
   except Exception as e:
     logger.error(traceback.format_exc())
 

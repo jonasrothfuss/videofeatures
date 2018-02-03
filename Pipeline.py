@@ -8,6 +8,7 @@ import os, pickle
 from sklearn.model_selection import KFold
 import logging
 import gc
+import itertools
 
 
 ModelDumpsDir = '/common/homes/students/rothfuss/Documents/video_retrieval_baselines2/DataDumps/Models' #'./DataDumps/Models'
@@ -209,7 +210,7 @@ def loadFisherVectors(fisher_vector_path):
   return fv, labels
 
 
-def evaluateMatching(feature_vectors, labels, n_splits=5, distance_metrics=['cosine', 'euclidean', 'hamming']):
+def evaluateMatching(feature_vectors, labels, n_splits=5, n_split_chunks=5, distance_metrics=['cosine', 'euclidean', 'hamming']):
   '''
   evaluates the matching performance by computing the mean average precision and precision at k
   -> the evaluation measures are computed on n splits and then averaged over the splits
@@ -233,19 +234,41 @@ def evaluateMatching(feature_vectors, labels, n_splits=5, distance_metrics=['cos
   inner_result_dict = dict([(eval_measure, []) for eval_measure in eval_measures])
   result_dict = dict([(distance_metric, inner_result_dict) for distance_metric in distance_metrics])
 
-  for memory_index, query_index in kf.split(labels):
-    memory_features = feature_vectors[memory_index]
-    query_features = feature_vectors[query_index]
-    memory_labels = labels[memory_index]
-    query_labels = labels[query_index]
+  for memory_indices, query_indices in kf.split(labels):
 
+    memory_indices_chunks = np.array_split(memory_indices, n_split_chunks)
+    query_indices_chunks = np.array_split(query_indices, n_split_chunks)
+    rows_chunk_list = []
+
+    columns_chunk_list = []
+
+    """ loop over different metrics """
     for metric in distance_metrics:
-      matches_df = nearestNeighborMatching(memory_features, memory_labels, query_features, query_labels, metric=metric)
+      """ for every metric, chunk the data due to memory issues """
+      for query_indices_chunk in query_indices_chunks:
+        for memory_indices_chunk in memory_indices_chunks:
+          memory_features = feature_vectors[memory_indices_chunk]
+          query_features = feature_vectors[query_indices_chunk]
+          memory_labels = labels[memory_indices_chunk]
+          query_labels = labels[query_indices_chunk]
+
+          columns_chunk = nearestNeighborMatching(memory_features, memory_labels, query_features, query_labels, metric=metric)
+          columns_chunk_list.append(columns_chunk)
+
+        """ concatenate along columns """
+        rows_df = pd.concat(columns_chunk_list, axis=1)
+        rows_chunk_list.append(rows_df)
+
+      """ concatenate along rows """
+      matches_df = pd.concat(rows_chunk_list, axis=0)
+
+
       result_dict[metric]['mAP'].append(mean_average_precision(matches_df))
       result_dict[metric]['precision_at_1'].append(precision_at_k(matches_df, k=1))
       result_dict[metric]['precision_at_3'].append(precision_at_k(matches_df, k=3))
       result_dict[metric]['precision_at_5'].append(precision_at_k(matches_df, k=5))
       result_dict[metric]['precision_at_10'].append(precision_at_k(matches_df, k=10))
+
 
   # Take the mean of the results over the folds
   for metric in distance_metrics:

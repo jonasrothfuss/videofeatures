@@ -47,7 +47,7 @@ def nearestNeighborMatching(features, labels, memory_index, query_index, n_parti
       memory_features_chunk = features[memory_index_chunk].reshape((len(memory_index_chunk), -1))
       query_features_chunk = features[query_index_chunk].reshape((len(query_index_chunk), -1))
 
-      distances_chunk = pairwise_distances(memory_features_chunk, query_features_chunk, metric=metric)
+      distances_chunk = pairwise_distances(memory_features_chunk, query_features_chunk, metric=metric, n_jobs=-1)
       new_j = j + len(query_index_chunk)
       distances[i:new_i, j:new_j] = distances_chunk
       j = new_j

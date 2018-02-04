@@ -5,6 +5,7 @@ import os
 import collections
 import pandas as pd
 from sklearn import decomposition
+import time
 
 def nearestNeighborMatching(features, labels, memory_index, query_index, n_partitions=5, n_closest_matches=-1, metric='cosine'):
   '''
@@ -41,6 +42,7 @@ def nearestNeighborMatching(features, labels, memory_index, query_index, n_parti
 
   i = 0
   for part, memory_index_chunk in enumerate(memory_index_chunks):
+    t_start = time.time()
     j = 0
     new_i =  i + len(memory_index_chunk)
     for query_index_chunk in query_index_chunks:
@@ -54,7 +56,7 @@ def nearestNeighborMatching(features, labels, memory_index, query_index, n_parti
 
     assert j == distances.shape[1]
     i = new_i
-    print("Computed distance partition {} of {}".format(part + 1, n_partitions))
+    print("Computed distance partition {} of {} [Duration: {} sec]".format(part + 1, n_partitions, time.time() - t_start))
 
   assert i == distances.shape[0]
 

@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import os, pickle
 from sklearn.model_selection import KFold
-import logging
+import logging, time
 import gc, copy
 import itertools
 
@@ -201,6 +201,7 @@ def loadFisherVectors(fisher_vector_path):
   :param feature_df_path: path to pandas dataframe that holds features
   :return: (fv, labels) - fv as ndarray of shape (n_videos, n_frames, 2*n_kernels, n_dim_descriptor) and labels (as array) of videos
   '''
+  print(fisher_vector_path)
   assert os.path.isfile(fisher_vector_path + '_labels.npy')
   assert os.path.isfile(fisher_vector_path + '.npy')
 
@@ -232,7 +233,7 @@ def evaluateMatching(feature_vectors, labels, n_splits=5, n_partitions=5, distan
 
   kf = KFold(n_splits=n_splits, shuffle=True)
 
-  eval_measures = ['mAP', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
+  eval_measures = ['mAP', 'mAP_3', 'mAP_5', 'mAP_10', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
   inner_result_dict = dict([(eval_measure, []) for eval_measure in eval_measures])
   result_dict = dict([(distance_metric, copy.deepcopy(inner_result_dict)) for distance_metric in distance_metrics])
 
@@ -242,7 +243,10 @@ def evaluateMatching(feature_vectors, labels, n_splits=5, n_partitions=5, distan
       matches_df = nearestNeighborMatching(feature_vectors, labels, memory_index, query_index, n_partitions=n_partitions,
                                            metric=metric)
 
-      result_dict[metric]['mAP'].append(mean_average_precision(matches_df))
+      result_dict[metric]['mAP'].append(mean_average_precision(matches_df, n_relevant_documents=-1))
+      result_dict[metric]['mAP_3'].append(mean_average_precision(matches_df, n_relevant_documents=3))
+      result_dict[metric]['mAP_5'].append(mean_average_precision(matches_df, n_relevant_documents=5))
+      result_dict[metric]['mAP_10'].append(mean_average_precision(matches_df, n_relevant_documents=10))
       result_dict[metric]['precision_at_1'].append(precision_at_k(matches_df, k=1))
       result_dict[metric]['precision_at_3'].append(precision_at_k(matches_df, k=3))
       result_dict[metric]['precision_at_5'].append(precision_at_k(matches_df, k=5))
@@ -255,7 +259,7 @@ def evaluateMatching(feature_vectors, labels, n_splits=5, n_partitions=5, distan
 
   return result_dict
 
-def setup_logger(logfile_name = 'piplineRuns.log'):
+def setup_logger(logfile_name = 'pipelineRuns.log'):
   log_file_path = os.path.join(LogDir, logfile_name)
   logger = logging.getLogger('PipelinRunLogger')
   logger.setLevel(logging.INFO)
@@ -344,7 +348,7 @@ def main():
   # for extractor in ['resnet']:
   #   extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=20)
 
-  runEntirePipeline(extractFeat=False, trainGMM=False, computeFV=False, evaluation=True)
+  #runEntirePipeline(extractFeat=False, trainGMM=False, computeFV=False, evaluation=True)
 
 
 
@@ -353,6 +357,10 @@ def main():
   #
   # fv_gmm = trainFisherVectorGMM(features, by_bic=False)
   # fv, labels = computeFisherVectors(features, labels, fv_gmm, dump_path=getDumpFileName("dummy", "test", 'fv_npy'))
+  t = time.time()
+  fv, labels = loadFisherVectors(getDumpFileName("dummy", "test", 'fv_npy'))
+  print(evaluateMatching(fv, labels, n_splits=3, distance_metrics=["cosine"]))
+  print("Duration: ", time.time() - t)
 
   #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')
   # features, labels = loadFeatures(feature_df_path='./DataDumps/Features/vgg_fc1_20bn_val')

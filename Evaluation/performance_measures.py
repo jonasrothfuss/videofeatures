@@ -34,7 +34,10 @@ def mean_average_precision(df_nearest_neighbor, n_relevant_documents=-1):
   P = P[mask, :]
   matches = matches[mask]
 
-  return np.mean((np.sum(np.multiply(P, matches), axis=1) / np.sum(matches, axis=1)))
+  if n_relevant_documents < 1:
+    return np.mean((np.sum(np.multiply(P, matches), axis=1) / np.sum(matches, axis=1)))
+  else:
+    return np.mean((np.sum(np.multiply(P, matches), axis=1) / n_relevant_documents))
 
 
 def precision_at_k(df_nearest_neighbor, k):

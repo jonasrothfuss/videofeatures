@@ -27,6 +27,7 @@ def mean_average_precision(df_nearest_neighbor, n_relevant_documents=-1):
     n_relevant_documents = df_pred_classes.shape[1]
 
   P = np.zeros(shape=matches.shape)
+  # Compute Precisions with cutoff k
   for k in range(n_relevant_documents):
     P[:, k] = np.mean(matches[:, :k+1], axis=1)
 

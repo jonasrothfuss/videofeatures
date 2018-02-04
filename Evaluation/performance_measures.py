@@ -23,7 +23,8 @@ def mean_average_precision(df_nearest_neighbor, n_relevant_documents=-1):
   df_pred_classes = df_nearest_neighbor.filter(like="pred_class").iloc[:, :n_relevant_documents]
   matches = df_pred_classes.isin(df_nearest_neighbor.true_class).as_matrix()
 
-  if n_relevant_documents < 0:
+  cutoff = n_relevant_documents > 0
+  if not cutoff:
     n_relevant_documents = df_pred_classes.shape[1]
 
   P = np.zeros(shape=matches.shape)
@@ -31,11 +32,10 @@ def mean_average_precision(df_nearest_neighbor, n_relevant_documents=-1):
   for k in range(n_relevant_documents):
     P[:, k] = np.mean(matches[:, :k+1], axis=1)
 
-  mask = np.sum(matches, axis=1) > 0
-  P = P[mask, :]
-  matches = matches[mask]
-
-  if n_relevant_documents < 1:
+  if not cutoff < 1:
+    mask = np.sum(matches, axis=1) > 0
+    P = P[mask, :]
+    matches = matches[mask]
     return np.mean((np.sum(np.multiply(P, matches), axis=1) / np.sum(matches, axis=1)))
   else:
     return np.mean((np.sum(np.multiply(P, matches), axis=1) / n_relevant_documents))

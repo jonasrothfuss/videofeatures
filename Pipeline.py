@@ -175,13 +175,13 @@ class Pipeline:
 
       np.save(dump_path + '.npy', fv)
       np.save(dump_path + '_labels.npy', labels)
-      print('Saved fisher vectors to ', dump_path)
       del fv
       return np.load(dump_path + '.npy', mmap_mode='r'), labels
 
     else:
       fv = fv_gmm.predict(features, normalized=normalized)
-
+      np.save(dump_path + '.npy', fv)
+      np.save(dump_path + '_labels.npy', labels)
 
     assert fv.shape[0] == labels.shape[0]
 
@@ -199,7 +199,7 @@ class Pipeline:
     '''
 
     if fisher_vector_path is None:
-      self.getDumpFileName('fv_npy')
+      fisher_vector_path = self.getDumpFileName('fv_npy')
     assert os.path.isfile(fisher_vector_path + '_labels.npy')
     assert os.path.isfile(fisher_vector_path + '.npy')
 

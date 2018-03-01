@@ -1,2 +1,0 @@
-from Evaluation.nearest_neighbor import nearestNeighborMatching
-from Evaluation.performance_measures import mean_average_precision, precision_at_k

@@ -4,7 +4,7 @@ import numpy as np
 import os, pickle
 import logging
 import gc
-
+import datetime as dt
 
 
 
@@ -25,7 +25,8 @@ class Pipeline:
     self.log_dir = create_dir(os.path.join(base_dir, "logs"))
     self.results_dir = create_dir(os.path.join(base_dir, "results"))
 
-    self.logger = self.setup_logger(logfile_name='pipeline_runs.log') # todo: change log naming
+    time_stamp = str(dt.datetime.now().strftime("%m-%d-%y_%H-%M"))
+    self.logger = self.setup_logger(logfile_name=time_stamp + '_video_features_log.txt')
 
 
   def extractFeatures(self, feature_dump_path=None):

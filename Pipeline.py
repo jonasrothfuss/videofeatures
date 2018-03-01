@@ -1,4 +1,4 @@
-from FeatureProcessing import FisherVectorGMM
+from fishervector import FisherVectorGMM
 import pandas as pd
 import numpy as np
 import os, pickle

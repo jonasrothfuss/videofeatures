@@ -9,13 +9,14 @@ import datetime as dt
 
 
 class Pipeline:
-  def __init__(self, dataset, extractor, base_dir):
+  def __init__(self, dataset, extractor, base_dir, dataset_name='VideoDataset'):
     """
     # todo
     :param dataset:
     :param extractor:
     """
     self.dataset = dataset
+    self.dataset_name = dataset_name
     self.extractor = extractor
     self.base_dir = base_dir
 
@@ -40,7 +41,7 @@ class Pipeline:
       feature_dump_path = self.getDumpFileName(type='features')
 
 
-    self.logger.info('Started extracting {} features from {} dataset'.format(self.extractor.__class__.__name__, self.dataset.__class__.__name__))
+    self.logger.info('Started extracting {} features from {} dataset'.format(self.extractor.__class__.__name__, self.dataset_name))
 
     features = self.extractor.computeFeaturesForVideoDataset(self.dataset, pickle_path=feature_dump_path)
 
@@ -85,13 +86,13 @@ class Pipeline:
   def getDumpFileName(self, type):
     assert type in ['features', 'model', 'fv_npy', 'results']
     if type is 'features':
-      return os.path.join(self.feature_dumps_dir, 'features_' + self.extractor.__class__.__name__ + '_' + self.dataset.__class__.__name__ + '.pickle')
+      return os.path.join(self.feature_dumps_dir, 'features_' + self.extractor.__class__.__name__ + '_' + self.dataset_name + '.pickle')
     elif type is 'model':
-      return os.path.join(self.model_dumps_dir, 'gmm_' + self.extractor.__class__.__name__ + '_' + self.dataset.__class__.__name__ + '.pickle')
+      return os.path.join(self.model_dumps_dir, 'gmm_' + self.extractor.__class__.__name__ + '_' + self.dataset_name + '.pickle')
     elif type is 'fv_npy':
-      return os.path.join(self.fisher_vector_dumps_dir, 'fv_' + self.extractor.__class__.__name__ + '_' + self.dataset.__class__.__name__)
+      return os.path.join(self.fisher_vector_dumps_dir, 'fv_' + self.extractor.__class__.__name__ + '_' + self.dataset_name)
     elif type is 'results':
-      return os.path.join(self.results_dir, 'results_{}.pickle'.format(self.dataset.__class__.__name__))
+      return os.path.join(self.results_dir, 'results_{}.pickle'.format(self.dataset_name))
 
 
 

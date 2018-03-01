@@ -19,13 +19,13 @@ class Pipeline:
     self.extractor = extractor
     self.base_dir = base_dir
 
-    self.model_dumps_dir = os.path.join(base_dir, "/models")
-    self.feature_dumps_dir = os.path.join(base_dir, "/features")
-    self.fisher_vector_dumps_dir = os.path.join(base_dir, "/fishervectors")
-    self.log_dir = os.path.join(base_dir, "/logs")
-    self.results_dir = os.path.join(base_dir, "/results")
+    self.model_dumps_dir = create_dir(os.path.join(base_dir, "models"))
+    self.feature_dumps_dir = create_dir(os.path.join(base_dir, "features"))
+    self.fisher_vector_dumps_dir = create_dir(os.path.join(base_dir, "fishervectors"))
+    self.log_dir = create_dir(os.path.join(base_dir, "logs"))
+    self.results_dir = create_dir(os.path.join(base_dir, "results"))
 
-    self.logger = self.setup_logger(logfile_name='piplineRuns.log') # todo: change log naming
+    self.logger = self.setup_logger(logfile_name='pipeline_runs.log') # todo: change log naming
 
 
   def extractFeatures(self, feature_dump_path=None):
@@ -39,7 +39,7 @@ class Pipeline:
       feature_dump_path = self.getDumpFileName(type='features')
 
 
-    self.logger.info('Started extracting {} features from {} dataset'.format(self.extractor.__class__.name, self.dataset.__class__.name))
+    self.logger.info('Started extracting {} features from {} dataset'.format(self.extractor.__class__.__name__, self.dataset.__class__.__name__))
 
     features = self.extractor.computeFeaturesForVideoDataset(self.dataset, pickle_path=feature_dump_path)
 
@@ -84,13 +84,13 @@ class Pipeline:
   def getDumpFileName(self, type):
     assert type in ['features', 'model', 'fv_npy', 'results']
     if type is 'features':
-      return os.path.join(self.feature_dumps_dir, 'features_' + self.extractor.__class__.name + '_' + self.dataset.__class__.name + '.pickle')
+      return os.path.join(self.feature_dumps_dir, 'features_' + self.extractor.__class__.__name__ + '_' + self.dataset.__class__.__name__ + '.pickle')
     elif type is 'model':
-      return os.path.join(self.model_dumps_dir, 'gmm_' + self.extractor.__class__.name + '_' + self.dataset.__class__.name + '.pickle')
+      return os.path.join(self.model_dumps_dir, 'gmm_' + self.extractor.__class__.__name__ + '_' + self.dataset.__class__.__name__ + '.pickle')
     elif type is 'fv_npy':
-      return os.path.join(self.fisher_vector_dumps_dir, 'fv_' + self.extractor.__class__.name + '_' + self.dataset.__class__.name)
+      return os.path.join(self.fisher_vector_dumps_dir, 'fv_' + self.extractor.__class__.__name__ + '_' + self.dataset.__class__.__name__)
     elif type is 'results':
-      return os.path.join(self.results_dir, 'results_{}.pickle'.format(self.dataset.__class__.name))
+      return os.path.join(self.results_dir, 'results_{}.pickle'.format(self.dataset.__class__.__name__))
 
 
 
@@ -226,4 +226,10 @@ class Pipeline:
     return logger
 
 
+
+def create_dir(output_dir):
+  assert(output_dir)
+  if not os.path.isdir(output_dir):
+    os.mkdir(output_dir)
+  return output_dir
 

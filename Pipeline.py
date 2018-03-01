@@ -40,7 +40,6 @@ class Pipeline:
     if not feature_dump_path:
       feature_dump_path = self.getDumpFileName(type='features')
 
-
     self.logger.info('Started extracting {} features from {} dataset'.format(self.extractor.__class__.__name__, self.dataset_name))
 
     features = self.extractor.computeFeaturesForVideoDataset(self.dataset, pickle_path=feature_dump_path)
@@ -75,8 +74,8 @@ class Pipeline:
       features = features.reshape((features.shape[0], features.shape[1], 1, features.shape[2]))
 
     self.logger.info(
-      'Loaded {} features from {}.  Features have shape {}'.format(self.extractor.__class__name, feature_df_path,
-                                                                   features.shape))
+      'Loaded {} features from {}.  Features have shape {}'.format(self.extractor.__class__.__name__, feature_df_path,
+                                                                   np.shape(features)))
 
     assert features.ndim == 4 and len(labels) == features.shape[0]
     return features, labels
@@ -121,7 +120,7 @@ class Pipeline:
 
   def loadFisherVectorGMM(self, pickle_path=None):
     if pickle_path is None:
-      self.getDumpFileName('model')
+      pickle_path = self.getDumpFileName('model')
     assert os.path.isfile(pickle_path)
     with open(pickle_path, 'rb') as f:
       fv_gmm = pickle.load(f)

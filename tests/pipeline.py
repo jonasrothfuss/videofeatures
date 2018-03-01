@@ -62,7 +62,7 @@ class PipelineTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  test_classes_to_run = [PipelineTest]#, PipelineTwentyBNTest]
+  test_classes_to_run = [PipelineTest, PipelineTwentyBNTest]
 
   loader = unittest.TestLoader()
   suites_list = []

@@ -45,7 +45,7 @@ class Pipeline:
     features = self.extractor.computeFeaturesForVideoDataset(self.dataset, pickle_path=feature_dump_path)
 
     self.logger.info('Finished extracting features from dataset. Features have shape {}.'
-                ' Dumped features to {}'.format(features.shape, feature_dump_path))
+                ' Dumped features to {}'.format(np.shape(features), feature_dump_path))
 
     return features
 

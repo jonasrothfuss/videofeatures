@@ -1,4 +1,4 @@
-# video_retrieval_baselines
+# py-video-features
 
 ## Installation
 conda install -c menpo opencv

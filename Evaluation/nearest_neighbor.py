@@ -40,6 +40,10 @@ def nearestNeighborMatching(features, labels, memory_index, query_index, n_parti
   memory_index_chunks = np.array_split(memory_index, n_partitions)
   query_index_chunks = np.array_split(query_index, n_partitions)
 
+  """ if n_chunks is > len(array) empty arrays are nested inside -> remove them """
+  memory_index_chunks = [x for x in memory_index_chunks if x.size > 0]
+  query_index_chunks = [x for x in query_index_chunks if x.size > 0]
+
   i = 0
   for part, memory_index_chunk in enumerate(memory_index_chunks):
     t_start = time.time()
@@ -49,7 +53,7 @@ def nearestNeighborMatching(features, labels, memory_index, query_index, n_parti
       memory_features_chunk = features[memory_index_chunk].reshape((len(memory_index_chunk), -1))
       query_features_chunk = features[query_index_chunk].reshape((len(query_index_chunk), -1))
 
-      distances_chunk = pairwise_distances(memory_features_chunk, query_features_chunk, metric=metric, n_jobs=-1)
+      distances_chunk = pairwise_distances(memory_features_chunk, query_features_chunk, metric=metric, n_jobs=1)
       new_j = j + len(query_index_chunk)
       distances[i:new_i, j:new_j] = distances_chunk
       j = new_j

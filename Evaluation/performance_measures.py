@@ -32,7 +32,7 @@ def mean_average_precision(df_nearest_neighbor, n_relevant_documents=-1):
   for k in range(n_relevant_documents):
     P[:, k] = np.mean(matches[:, :k+1], axis=1)
 
-  if not cutoff < 1:
+  if not cutoff:
     mask = np.sum(matches, axis=1) > 0
     P = P[mask, :]
     matches = matches[mask]

@@ -28,10 +28,10 @@ class ArmarDataset:
     self.n_frames = n_frames
 
     self.train_dataset = GulpVideoDataset(TRAIN_GULP_DIR, 20, 1, False, transform=transforms)
-    self.train_loader = DataLoader(self.train_dataset, batch_size=10, shuffle=False, num_workers=8, drop_last=True)
+    self.train_loader = DataLoader(self.train_dataset, batch_size=10, shuffle=False, num_workers=8, drop_last=False)
 
     self.val_dataset = GulpVideoDataset(VALID_GULP_DIR, n_frames, 1, False, transform=transforms)
-    self.val_loader = DataLoader(self.val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
+    self.val_loader = DataLoader(self.val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=False)
 
 
   def getDataLoader(self, train=False):

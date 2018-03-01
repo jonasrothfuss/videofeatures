@@ -1,5 +1,6 @@
 from FeatureExtractor import SIFTFeatures, VGGFeatures, ResNetFeatures, SURFFeatures
 from DatasetProvider import TwentyBNDataset
+from DatasetProvider import ArmarDataset, ActivityNetDataset
 from FeatureProcessing import FisherVectorGMM
 from Evaluation import nearestNeighborMatching, precision_at_k, mean_average_precision
 import pandas as pd
@@ -19,7 +20,7 @@ ResultsDir = './DataDumps/Results'
 
 EXTRACTOR_TYPES = ['resnet', 'vgg_fc1', 'vgg_fc2', 'surf', 'sift']
 EXTERNALLY_EXTRACTED_FEATURES = ['stip']
-DATASETS = ['20bn_val', '20bn_train', 'armar_val', 'armar_train']
+DATASETS = ['activity_net_val', '20bn_val', '20bn_train', 'armar_val', 'armar_train']
 
 
 def getDumpFileName(extractor, dataset, type):
@@ -34,7 +35,7 @@ def getDumpFileName(extractor, dataset, type):
     return os.path.join(ResultsDir, 'results_{}.pickle'.format(dataset))
 
 def overall_result_dict_to_df(result_dict):
-  df_columns = ['extractor', 'distance_measure', 'mAP', 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
+  df_columns = ['extractor', 'distance_measure', 'mAP', 'mAP_3', 'mAP_5', 'mAP_10' 'precision_at_1', 'precision_at_3', 'precision_at_5', 'precision_at_10']
   df_rows = []
   i = 1
   for dataset, inner_dict in result_dict.items():
@@ -85,10 +86,11 @@ def extractFeatures(extractor_type='vgg', dataset='20bn_val', batch_size=20, fea
   elif dataset is '20bn_train':
     raise NotImplementedError(dataset + 'loader is not implemented') #TODO
   elif dataset is 'armar_val':
-    raise NotImplementedError(dataset + 'loader is not implemented') #TODO
+    loader = ArmarDataset(batch_size=batch_size).getDataLoader(train=False)
   elif dataset is 'armar_train':
-    raise NotImplementedError(dataset + 'loader is not implemented') #TODO
-
+    loader = ArmarDataset(batch_size=batch_size).getDataLoader(train=True)
+  elif dataset is 'activity_net_val':
+    loader = ActivityNetDataset(batch_size=batch_size).getDataLoader(train=False)
   if not feature_dump_path:
     feature_dump_path = os.path.join(FeatureDumpsDir, extractor_type + '_' + dataset + '.pickle')
 
@@ -212,7 +214,7 @@ def loadFisherVectors(fisher_vector_path):
   return fv, labels
 
 
-def evaluateMatching(feature_vectors, labels, n_splits=5, n_partitions=5, distance_metrics=['cosine', 'euclidean', 'hamming']):
+def evaluateMatching(feature_vectors, labels, n_splits=5, n_partitions=5, distance_metrics=['cosine', 'euclidean']):
   '''
   evaluates the matching performance by computing the mean average precision and precision at k
   -> the evaluation measures are computed on n splits and then averaged over the splits
@@ -318,7 +320,7 @@ def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, evaluatio
       ''' 3. Compute / Load Fisher Vectors '''
       logger.info('Started Computing Fisher Vectors')
       fv, labels = computeFisherVectors(features, labels, fv_gmm, normalized=True, dump_path=getDumpFileName(extractor, dataset, 'fv_npy'))
-      logger.info('Finished computing Fisher Vectors. Dumped vectors to {}'.format(getDumpFileName(extractor, dataset, 'fisher_vectors')))
+      logger.info('Finished computing Fisher Vectors. Dumped vectors to {}'.format(getDumpFileName(extractor, dataset, 'fv_npy')))
 
     else:
       fv, labels = loadFisherVectors(getDumpFileName(extractor, dataset, 'fv_npy'))
@@ -345,10 +347,12 @@ def runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, evaluatio
 
 
 def main():
-  # for extractor in ['resnet']:
-  #   extractFeatures(extractor_type=extractor, dataset='20bn_val', batch_size=20)
+  #for extractor in ['sift']:
+  #  extractFeatures(extractor_type=extractor, dataset='armar_val', batch_size=20)
 
-  #runEntirePipeline(extractFeat=False, trainGMM=False, computeFV=False, evaluation=True)
+
+
+  runEntirePipeline(extractFeat=True, trainGMM=True, computeFV=True, evaluation=True, dataset='activity_net_val')
 
 
 
@@ -357,10 +361,10 @@ def main():
   #
   # fv_gmm = trainFisherVectorGMM(features, by_bic=False)
   # fv, labels = computeFisherVectors(features, labels, fv_gmm, dump_path=getDumpFileName("dummy", "test", 'fv_npy'))
-  t = time.time()
-  fv, labels = loadFisherVectors(getDumpFileName("dummy", "test", 'fv_npy'))
-  print(evaluateMatching(fv, labels, n_splits=3, distance_metrics=["cosine"]))
-  print("Duration: ", time.time() - t)
+  #t = time.time()
+  #fv, labels = loadFisherVectors(getDumpFileName("dummy", "test", 'fv_npy'))
+  #print(evaluateMatching(fv, labels, n_splits=3, distance_metrics=["cosine"]))
+  #print("Duration: ", time.time() - t)
 
   #features, labels = extractFeatures(extractor_type='vgg_fc1', dataset='20bn_val')
   # features, labels = loadFeatures(feature_df_path='./DataDumps/Features/vgg_fc1_20bn_val')

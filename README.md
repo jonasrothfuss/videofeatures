@@ -13,29 +13,30 @@ $ pip install py-video-features
 ```
 
 # First steps
-##### Setting up the dataset
+##### 1. Setting up the dataset
 It is very straightforward to bring your dataset into the right 'gulp' format. The GulpIO documentation gets you started quickly [1]. If you're using one of the prevalent datasets, e.g. ActivityNet, Kinetics or TwentyBN-something-something, it's even simpler to get you started - simply use the available adapter [2] to gulp your local files. 
 
-##### 
-
-we set up both dataset and extractor
+##### 2. Initialization
+First, we instantiate both dataset (here ActivityNet) and extractor (ResNet)
 ```
-self.dataset = TwentyBNDataset(batch_size=20, train_dir=self.train_dir, valid_dir=self.valid_dir).getDataLoader(
-                                                                                      train=False)
+activitynet = ActivityNetDataset(batch_size=20, train_dir=path_train, valid_dir=path_train).getDataLoader(train=True)
+resnet = ResNetFeatures()
+pipeline = Pipeline(dataset=activitynet, extractor=resnet)
 ```
 
+##### 3. Feature extraction, GMM training and FV computation
+Having initialized the pipeline, we can do
+```
+features, labels = pipeline.extractFeatures()
+fisher_vector_gmm = pipeline.trainFisherVectorGMM(features)
+fisher_vectors, labels = pipeline.computeFisherVectors(features=features, labels=labels, fv_gmm=fisher_vector_gmm)
+```
 
-
-# Parameters
-Todo: describe config file fields
 
 # Example
 
 A full example can be viewed in the following gist:
-
 https://gist.github.com/ferreirafabio/60323a87ba80c052ab272ff769149577
-
-As shown in the example, we are using `ArmarDataset` class as our data. This is a custom gulpio class that we've written for our own data and which inherits an adapter class from the gulpio package. GulpIO provides the possibility to work directly with familiar datasets such as ActivityNet or TwentyBN-something-something without any implementation efforts but also allows you to 'gulp' your own dataset, which is what we've done in the example case. Please refer to the gulpio package [1] for further information about gulping your own dataset. By having specified in the config.ini the paths to our gulped dataset, we're able to rapidly set-up the pipeline and begin to extract ResNet (or many other) features from the data and train a Fisher Vector GMM to then compute the fisher vectors based on our video features.
 
 [1] https://github.com/TwentyBN/GulpIO
 [2] https://github.com/TwentyBN/GulpIO/blob/master/src/main/python/gulpio/adapters.py

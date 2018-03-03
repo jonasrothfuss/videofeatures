@@ -9,8 +9,8 @@ class PipelineTwentyBNTest(unittest.TestCase):
   def setUp(self):
     self.config = configparser.ConfigParser()
     self.config.read('../config.ini')
-    self.train_dir = self.config['GULP']['twentybn_train_gulp']
-    self.valid_dir = self.config['GULP']['twentybn_valid_gulp']
+    self.train_dir = self.config['GULP']['train_data_gulp']
+    self.valid_dir = self.config['GULP']['valid_data_gulp']
     self.dataset = TwentyBNDataset(batch_size=20, train_dir=self.train_dir, valid_dir=self.valid_dir).getDataLoader(
                                                                                       train=False)
     self.extractor = ResNetFeatures()

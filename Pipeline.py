@@ -11,9 +11,14 @@ import datetime as dt
 class Pipeline:
   def __init__(self, dataset, extractor, base_dir, dataset_name='VideoDataset'):
     """
-    # todo
-    :param dataset:
-    :param extractor:
+    A pipeline initialized with a dataset and a feature extractor allows to
+     1) extract, store and load features (see repo description for currently supported features)
+     2) train a GMM for a Fisher Vector encoding based on the chosen features, store and load its model parameters after training
+     3) compute Fisher Vectors from the GMM, store and load them
+    :param dataset: gulpIO DataLoader object which represents a dataset
+    :param extractor: feature extractor object of type BaseFeatures (must implement computeFeatures function)
+    :param base_dir: absolute or relative path to a directory where sub folders for logs and data dumps from the pipeline are created
+    :param dataset_name: a string representing the name of the dataset used for logs and file name
     """
     self.dataset = dataset
     self.dataset_name = dataset_name
@@ -27,7 +32,7 @@ class Pipeline:
     self.results_dir = create_dir(os.path.join(base_dir, "results"))
 
     time_stamp = str(dt.datetime.now().strftime("%m-%d-%y_%H-%M"))
-    self.logger = self.setup_logger(logfile_name=time_stamp + '_video_features_log.txt')
+    self.logger = self.setup_logger(logfile_name = time_stamp + '_video_features.log')
 
 
   def extractFeatures(self, feature_dump_path=None):
@@ -51,11 +56,11 @@ class Pipeline:
 
 
   def loadFeatures(self, feature_df_path=None):
-    '''
+    """
     loads features from pd dataframe and returns them as a matrix
     :param feature_df_path: path to pandas dataframe that holds features
     :return: (features, labels) - features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (list) of videos
-    '''
+    """
 
     if feature_df_path is None:
       feature_df_path = self.getDumpFileName('features')
@@ -97,7 +102,7 @@ class Pipeline:
 
   def trainFisherVectorGMM(self, features, by_bic=True, model_dump_path=None, n_kernels=50):
     """
-    trains a GMM for Fisher Vectors on the given features.
+    Trains a GMM for Fisher Vectors on the given features.
     :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor) and labels (list) of videos
     :param by_bic: denotes whether the gmm fit is chosen based on the lowest BIC
     :param n_kernels: provide if not fitted by bic (bic-method chooses from a fixed set of n_kernels)
@@ -133,11 +138,13 @@ class Pipeline:
 
   def computeFisherVectors(self, features, labels, fv_gmm, normalized=True, mem_map_mode = False, dump_path=None, batch_size=100):
     """
+    Compute the (improved) Fisher Vectors of features with a fitted FisherVectorGMM.
     :param features: features as ndarray of shape (n_videos, n_frames, n_descriptors_per_image, n_dim_descriptor)
     :param labels: labels correspodning to features - array of shape (n_videos,)
     :param fv_gmm: fitted FisherVectorGMM instance
     :param normalized: boolean - if true: improved fisher vectors are computed
-    :param mem_map_mode: TODO
+    :param mem_map_mode: set to True, if the fisher vectors should be computed in batches which are stored as numpy memory map on disk (recommended
+    if the computation overflows the available RAM)
     :param dump_path: file path specifying the dump location for the computed vectors
     :param batch_size: batch size for computing the fisher vactors
     :return: (fv, labels) fisher vectors - ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
@@ -191,12 +198,12 @@ class Pipeline:
 
 
   def loadFisherVectors(self, fisher_vector_path=None):
-    '''
-    loads fisher vectors from pd dataframe and returns them as a matrix
+    """
+    Loads fisher vectors from pd dataframe and returns them as a matrix
     :param feature_df: pandas dataframe which holds features in a column 'features'
     :param feature_df_path: path to pandas dataframe that holds features
     :return: (fv, labels) - fv as ndarray of shape (n_videos, n_frames, 2*n_kernels, n_dim_descriptor) and labels (as array) of videos
-    '''
+    """
 
     if fisher_vector_path is None:
       fisher_vector_path = self.getDumpFileName('fv_npy')
@@ -210,9 +217,9 @@ class Pipeline:
     return fv, labels
 
 
-  def setup_logger(self, logfile_name = 'pipelineRuns.log'):
+  def setup_logger(self, logfile_name = '_video_features.log'):
     log_file_path = os.path.join(self.log_dir, logfile_name)
-    logger = logging.getLogger('PipelinRunLogger')
+    logger = logging.getLogger('PipelineRunLogger')
     logger.setLevel(logging.INFO)
     fh = logging.FileHandler(log_file_path)
     fh.setLevel(logging.DEBUG)

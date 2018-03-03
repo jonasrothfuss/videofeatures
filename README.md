@@ -19,9 +19,10 @@ It is very straightforward to bring your dataset into the right 'gulp' format. T
 ### 2. Initialization
 First, we instantiate both dataset (here ActivityNet) and extractor (ResNet)
 ```
+output_dir = "./output" # where all the features, models and logs are exported to
 activitynet = ActivityNetDataset(batch_size=20, train_dir=path_train, valid_dir=path_train).getDataLoader(train=True)
 resnet = ResNetFeatures()
-pipeline = Pipeline(dataset=activitynet, extractor=resnet)
+pipeline = Pipeline(dataset=activitynet, extractor=resnet, base_dir=output_dir)
 ```
 
 ### 3. Feature extraction, GMM training and FV computation

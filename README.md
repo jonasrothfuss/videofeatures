@@ -1,9 +1,9 @@
 # Description
-This package implements the computation of (improved) Fisher Vectors for video or image datasets. Since the implementation supports the FV computation based on several feature extractor types (currently supporting ResNet, VGG, SIFT and SURF), it allows for comparing one's approach not just to FV but also to common computer vision feature extractors.
+This package implements the computation of (improved) Fisher Vectors for video or image datasets. Since the implementation supports the FV computation based on several feature extractor types (currently supporting **ResNet**, **VGG**, **SIFT** and **SURF**), it allows for comparing one's approach not just to FV but also to common computer vision feature extractors.
 In particular, the package covers the following features:
-1) extraction, exporting and restoring of several features from videos or image data
-2) training a GMM for a Fisher Vector (FVGMM) encoding based on the features, then exporting the FVGMM model parameters
-3) computation of (improved) Fisher Vectors from the FVGMM and features
+1) **extraction**, exporting and restoring **of several features from videos** or image data
+2) **training a GMM for a Fisher Vector (FVGMM)** encoding based on the features, then exporting the FVGMM model parameters
+3) **computation of (improved) Fisher Vectors** from the FVGMM and features
 
 For representation of datasets, we use the convenient and straightforward GulpIO storage format. The above mentioned feature extractors are ready-to-use with this package. 
 

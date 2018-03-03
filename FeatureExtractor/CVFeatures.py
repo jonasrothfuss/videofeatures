@@ -97,12 +97,3 @@ class SURFFeatures(CVFeatures):
 
     return np.concatenate(descriptor_array, axis=0)
 
-
-
-def main():
-  model = SIFTFeatures()
-  loader = TwentyBNDataset(batch_size=20).getDataLoader()
-  model.computeFeaturesForVideoDataset(loader, pickle_path="/common/homes/students/rothfuss/Desktop/SIFT_fc1_20bn.pickle")
-
-if __name__ == "__main__":
-  main()

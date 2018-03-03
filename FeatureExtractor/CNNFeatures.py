@@ -1,16 +1,11 @@
-
 import keras.applications.vgg16 as vgg16
 import keras.applications.resnet50 as resnet50
-from keras.preprocessing.image import load_img, img_to_array
 from keras.models import Model
-from DatasetProvider import TwentyBNDataset
 from gulpio.loader import DataLoader
 import numpy as np
 import pandas as pd
 
-from FeatureExtractor.BaseFeatureExtractor import BaseFeatures
 
-VIDEO_PATH = "/home/jonasrothfuss/Downloads/Armar_Experiences_Download/video_frames/1"
 
 
 class CNNFeatures:
@@ -81,11 +76,3 @@ class ResNetFeatures(CNNFeatures):
     features = self.model.predict(x)
     return features.reshape((-1, 2048))
 
-
-def main():
-  model = VGGFeatures()
-  loader = TwentyBNDataset(batch_size=20).getDataLoader()
-  model.computeFeaturesForVideoDataset(loader, pickle_path="/common/homes/students/rothfuss/Desktop/vgg_fc1_20bn.pickle")
-
-if __name__ == "__main__":
-  main()

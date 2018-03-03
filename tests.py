@@ -1,9 +1,11 @@
-from DatasetProvider import TwentyBNDataset
-from FeatureExtractor import ResNetFeatures
-from Pipeline import Pipeline
-import unittest
 import configparser
+import unittest
 import numpy as np
+
+from videofeatures.TwentyBNDatasetProvider import TwentyBNDataset
+from videofeatures.CNNFeatures import ResNetFeatures
+from videofeatures.VideoFeatures import VideoFeatures
+
 
 class PipelineTwentyBNTest(unittest.TestCase):
   def setUp(self):
@@ -15,7 +17,7 @@ class PipelineTwentyBNTest(unittest.TestCase):
                                                                                       train=False)
     self.extractor = ResNetFeatures()
     self._base_dir = "../output"
-    self.pipeline = Pipeline(dataset=self.dataset, extractor=self.extractor, dataset_name="twentybn",
+    self.pipeline = VideoFeatures(dataset=self.dataset, extractor=self.extractor, dataset_name="twentybn",
                              base_dir=self._base_dir)
 
 
@@ -43,7 +45,7 @@ class PipelineTest(unittest.TestCase):
   def setUp(self):
     """ use a dummy Pipeline without setting up dataset and extractor"""
     self._base_dir = "../output"
-    self.pipeline = Pipeline(dataset=None, extractor=None, dataset_name="nprandom",
+    self.pipeline = VideoFeatures(dataset=None, extractor=None, dataset_name="nprandom",
                              base_dir=self._base_dir)
 
 

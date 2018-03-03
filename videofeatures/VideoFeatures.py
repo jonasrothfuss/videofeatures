@@ -8,10 +8,10 @@ import datetime as dt
 
 
 
-class Pipeline:
+class VideoFeatures:
   def __init__(self, dataset, extractor, base_dir, dataset_name='VideoDataset'):
     """
-    A pipeline initialized with a dataset and a feature extractor allows to
+    A Video Feature object initialized with a dataset and a feature extractor allows to
      1) extract, store and load features (see repo description for currently supported features)
      2) train a GMM for a Fisher Vector encoding based on the chosen features, store and load its model parameters after training
      3) compute Fisher Vectors from the GMM, store and load them
@@ -47,12 +47,12 @@ class Pipeline:
 
     self.logger.info('Started extracting {} features from {} dataset'.format(self.extractor.__class__.__name__, self.dataset_name))
 
-    features = self.extractor.computeFeaturesForVideoDataset(self.dataset, pickle_path=feature_dump_path)
+    features, labels = self.extractor.computeFeaturesForVideoDataset(self.dataset, pickle_path=feature_dump_path)
 
     self.logger.info('Finished extracting features from dataset. Features have shape {}.'
                 ' Dumped features to {}'.format(np.shape(features), feature_dump_path))
 
-    return features
+    return features, labels
 
 
   def loadFeatures(self, feature_df_path=None):

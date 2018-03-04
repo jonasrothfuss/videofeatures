@@ -5,7 +5,7 @@ In particular, the package covers the following features:
 2) **training a GMM for a Fisher Vector (FVGMM)** encoding based on the features, then exporting the FVGMM model parameters
 3) **computation of (improved) Fisher Vectors** from the FVGMM and features
 
-For representation of datasets, we use the convenient and straightforward GulpIO storage format. The above mentioned feature extractors are ready-to-use with this package. 
+For representation of datasets we use the convenient and straightforward GulpIO storage format. The above mentioned feature extractors are ready-to-use with this package and adding more extractors can be easily done. 
 
 # Installation and import
 ```

@@ -49,5 +49,5 @@ Contributors:
 * Jonas Rothfuss (https://github.com/jonasrothfuss/)
 * Fabio Ferreira (https://github.com/ferreirafabio/)
 
-[1] https://github.com/TwentyBN/GulpIO
-[2] https://github.com/TwentyBN/GulpIO/blob/master/src/main/python/gulpio/adapters.py
+- [1] https://github.com/TwentyBN/GulpIO
+- [2] https://github.com/TwentyBN/GulpIO/blob/master/src/main/python/gulpio/adapters.py

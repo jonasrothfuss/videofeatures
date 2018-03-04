@@ -41,5 +41,10 @@ fisher_vectors, labels = pipeline.computeFisherVectors(features=features, labels
 A full example can be viewed in the following gist:
 https://gist.github.com/ferreirafabio/60323a87ba80c052ab272ff769149577
 
+# Parameters
+if you want to use 
+* VGG, SIFT and SURF features: `from videofeatures import VGGFeatures, SIFTFeatures, SURFFeatures` 
+* TwentyBNDataset: `from videofeatures import TwentyBNDataset`
+
 [1] https://github.com/TwentyBN/GulpIO
 [2] https://github.com/TwentyBN/GulpIO/blob/master/src/main/python/gulpio/adapters.py

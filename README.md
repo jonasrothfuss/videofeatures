@@ -7,10 +7,15 @@ In particular, the package covers the following features:
 
 For representation of datasets, we use the convenient and straightforward GulpIO storage format. The above mentioned feature extractors are ready-to-use with this package. 
 
-# Installation
+# Installation and import
 ```
-$ pip install py-video-features
+$ pip install videofeatures
 ```
+then import the package with
+```
+from videofeatures import VideoFeatures
+```
+
 
 # First steps
 ### 1. Setting up the dataset

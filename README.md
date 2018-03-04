@@ -45,7 +45,7 @@ if you want to use
 * VGG, SIFT and SURF features: `from videofeatures import VGGFeatures, SIFTFeatures, SURFFeatures` 
 * TwentyBNDataset: `from videofeatures import TwentyBNDataset`
 
-# Contributors:
+## Contributors:
 * Jonas Rothfuss (https://github.com/jonasrothfuss/)
 * Fabio Ferreira (https://github.com/ferreirafabio/)
 

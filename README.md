@@ -16,7 +16,6 @@ then import the package with
 from videofeatures import Pipeline, ActivityNetDataset, ResNetFeatures
 ```
 
-
 # First steps
 ### 1. Setting up the dataset
 It is very straightforward to bring your dataset into the right 'gulp' format. The GulpIO documentation gets you started quickly [1]. If you're using one of the prevalent datasets, e.g. ActivityNet, Kinetics or TwentyBN-something-something, it's even simpler to get you started - simply use the available adapter [2] to gulp your local files. 

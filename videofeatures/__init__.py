@@ -1,0 +1,5 @@
+from videofeatures.VideoFeatures import Pipeline
+from videofeatures.ActivityNetDatasetProvider import ActivityNetDataset
+from videofeatures.TwentyBNDatasetProvider import TwentyBNDataset
+from videofeatures.CNNFeatures import ResNetFeatures
+from videofeatures.CNNFeatures import VGGFeatures

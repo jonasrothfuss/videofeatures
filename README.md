@@ -13,7 +13,7 @@ $ pip install videofeatures
 ```
 then import the package with
 ```
-from videofeatures import VideoFeatures
+from videofeatures import Pipeline, ActivityNetDataset, ResNetFeatures
 ```
 
 

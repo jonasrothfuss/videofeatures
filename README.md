@@ -45,9 +45,10 @@ if you want to use
 * VGG, SIFT and SURF features: `from videofeatures import VGGFeatures, SIFTFeatures, SURFFeatures` 
 * TwentyBNDataset: `from videofeatures import TwentyBNDataset`
 
-Contributors:
+# Contributors:
 * Jonas Rothfuss (https://github.com/jonasrothfuss/)
 * Fabio Ferreira (https://github.com/ferreirafabio/)
 
+## References
 - [1] https://github.com/TwentyBN/GulpIO
 - [2] https://github.com/TwentyBN/GulpIO/blob/master/src/main/python/gulpio/adapters.py

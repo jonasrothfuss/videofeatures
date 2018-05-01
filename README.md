@@ -1,4 +1,4 @@
-[![Downloads](http://pepy.tech/badge/videofeaturesa)](http://pepy.tech/count/videofeatures)
+[![Downloads](http://pepy.tech/badge/videofeatures)](http://pepy.tech/count/videofeatures)
 
 # Description
 This package implements the feature extraction from video or image (currently supported: **ResNet**, **VGG**, **SIFT** and **SURF**) and based on these features, the training of a Fisher Vector GMM and computation of (improved) Fisher Vectors. A perhaps useful application of this implementation is to set-up a feature extractor baseline and compare one's approach to both FV and standard computer vision features.
